@@ -24,6 +24,24 @@ export interface Alert {
   occurrence_count: number;
   last_seen_at: string;
   status: string;
+  /**
+   * Kecepatan saat pelanggaran, khusus speed_flag.
+   *
+   * Diambil sebagai satu field dari jsonb (`raw_payload->speed`), bukan dengan
+   * memuat seluruh raw_payload — feed menahan 100 baris dan payload penuh akan
+   * memperberat wall display. Baris yang datang lewat Realtime membawa
+   * raw_payload utuh, jadi keduanya perlu dibaca (lihat kecepatan()).
+   */
+  speed?: number | string | null;
+  raw_payload?: { speed?: number | string | null } | null;
+}
+
+/** Kecepatan dari muatan awal (kolom teralias) atau dari event Realtime. */
+function kecepatan(a: Alert): number | null {
+  const v = a.speed ?? a.raw_payload?.speed;
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 const SEVERITY_BORDER: Record<string, string> = {
@@ -149,8 +167,8 @@ export function AlertFeed({ wall = false, initial = [] }: { wall?: boolean; init
   }, [alerts]);
 
   const scale = wall
-    ? { vhcid: 'text-4xl', type: 'text-2xl', meta: 'text-xl', badge: 'text-xl' }
-    : { vhcid: 'text-2xl', type: 'text-base', meta: 'text-sm', badge: 'text-sm' };
+    ? { vhcid: 'text-4xl', type: 'text-2xl', meta: 'text-xl', badge: 'text-xl', speed: 'text-3xl' }
+    : { vhcid: 'text-2xl', type: 'text-base', meta: 'text-sm', badge: 'text-sm', speed: 'text-xl' };
 
   return (
     <section className="flex h-full flex-col gap-3 overflow-hidden">
@@ -192,13 +210,26 @@ export function AlertFeed({ wall = false, initial = [] }: { wall?: boolean; init
                 </p>
               </div>
 
-              <span
-                className={`shrink-0 rounded-full px-3 py-1 font-medium ${scale.badge} ${
-                  SEVERITY_BADGE[a.severity] ?? 'bg-severity-unknown text-white'
-                }`}
-              >
-                {a.severity}
-              </span>
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <span
+                  className={`rounded-full px-3 py-1 font-medium ${scale.badge} ${
+                    SEVERITY_BADGE[a.severity] ?? 'bg-severity-unknown text-white'
+                  }`}
+                >
+                  {a.severity}
+                </span>
+
+                {/* Kecepatan adalah pelanggarannya itu sendiri, bukan detail
+                    pendukung — jadi ditaruh tepat di bawah badge severity dan
+                    diberi warna kritis. Ini pemakaian warna severity yang sah
+                    (UIUX §10): yang dilarang adalah memakainya untuk elemen
+                    non-alert, sedangkan angka ini justru isi alertnya. */}
+                {kecepatan(a) != null && (
+                  <span className={`font-mono font-medium text-severity-critical ${scale.speed}`}>
+                    {kecepatan(a)} km/jam
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">

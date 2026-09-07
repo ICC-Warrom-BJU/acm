@@ -34,7 +34,8 @@ export function Dashboard({
     supabase
       .from('alerts')
       .select(
-        'id, vhcid, alert_type, severity, no_plat, cabang, group_project, occurrence_count, last_seen_at, status',
+        // raw_payload->speed: satu field saja, bukan seluruh payload.
+        'id, vhcid, alert_type, severity, no_plat, cabang, group_project, occurrence_count, last_seen_at, status, speed:raw_payload->speed',
       )
       .neq('status', 'closed')
       .order('last_seen_at', { ascending: false })

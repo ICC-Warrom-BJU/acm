@@ -85,7 +85,10 @@ export function AlertDetail({ alertId, onClose }: { alertId: string; onClose: ()
             {/* Nilai yang paling dicari operator, diangkat ke atas supaya tidak
                 perlu menyisir JSON mentah di bawah. */}
             <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <Item label="Kecepatan" nilai={raw.speed != null ? `${raw.speed} km/jam` : null} tekan />
+              {/* Merah dan diperbesar: kecepatan adalah pelanggarannya
+                  sendiri, bukan detail pendukung. Konsisten dengan tampilan
+                  di feed. */}
+              <Item label="Kecepatan" nilai={raw.speed != null ? `${raw.speed} km/jam` : null} tekan kritis />
               <Item label="Ambang batas" nilai={raw.speed_flag_value != null ? `${raw.speed_flag_value} km/jam` : null} />
               <Item label="Keterangan" nilai={raw.event_text ?? raw.ket_notif} />
               <Item label="Arah" nilai={raw.direction} />
@@ -176,15 +179,19 @@ function num(v: unknown): number | null {
 
 /** Field yang kosong disembunyikan — kolom API berbeda-beda per jenis alert. */
 function Item({
-  label, nilai, mono, tekan,
+  label, nilai, mono, tekan, kritis,
 }: {
-  label: string; nilai: unknown; mono?: boolean; tekan?: boolean;
+  label: string; nilai: unknown; mono?: boolean; tekan?: boolean; kritis?: boolean;
 }) {
   if (nilai == null || nilai === '') return null;
   return (
     <div>
       <p className="text-xs text-content-secondary">{label}</p>
-      <p className={`${mono ? 'font-mono text-sm' : ''} ${tekan ? 'text-xl font-medium' : ''}`}>
+      <p
+        className={`${mono ? 'font-mono text-sm' : ''} ${tekan ? 'text-2xl font-medium' : ''} ${
+          kritis ? 'font-mono text-severity-critical' : ''
+        }`}
+      >
         {String(nilai)}
       </p>
     </div>
