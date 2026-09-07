@@ -132,7 +132,34 @@ select id, status_code, left(content, 300) as content, created
 | `status_code` 401 + JSON | Rahasia di Vercel ≠ rahasia di database |
 | HTML berisi "Authentication" | Deployment Protection masih menyala (langkah 4) |
 | `status_code` 404 | Domain benar tapi path salah, atau deploy gagal |
+| `status_code` NULL + `error_msg` "SSL connect error" | Kegagalan di lapis koneksi — lihat catatan di bawah |
 | `status_code` 200 | Rantai nyambung — periksa `polling_logs` untuk hasilnya |
+
+### "SSL connect error" — teramati di produksi, 2026-09-07
+
+Pada dua siklus pertama setelah `app_base_url` diisi (04:00 dan 04:05 WIB), **keempat panggilan `pg_net` gagal** dengan `error_msg = 'SSL connect error'` dan `status_code` kosong. Mulai 04:10 semuanya normal, dan tetap normal sesudahnya — tanpa ada yang diubah.
+
+Gagalnya terjadi **sebelum permintaan sampai ke Vercel**, jadi aplikasi tidak pernah dijalankan. Dugaan terkuat: sertifikat TLS domain Vercel yang baru dibuat belum sepenuhnya siap saat panggilan pertama terjadi.
+
+Kalau ini muncul pada deploy baru, tunggu 10–15 menit sebelum menyimpulkan ada yang salah. Kalau masih berlanjut setelah itu, barulah periksa domain dan sertifikatnya.
+
+### Yang membuat kejadian itu penting
+
+Empat siklus polling gagal total, dan **ACM tidak mencatat apa pun**:
+
+| Tempat yang biasa dicek | Isinya saat kejadian |
+|---|---|
+| `polling_logs` | Kosong — tidak ada baris untuk slot 04:00 dan 04:05 |
+| `alert_sources.consecutive_failures` | `0` |
+| `alert_sources.last_error` | `null` |
+| Modul Kesehatan API (rancangan awal) | **Hijau sempurna** |
+
+Sebabnya ada di desain: `polling_logs` ditulis oleh aplikasi, sehingga kegagalan yang terjadi **sebelum aplikasi berjalan** tidak mungkin tercatat di sana. Satu-satunya yang tahu adalah `net._http_response`.
+
+Karena itu Modul Kesehatan API tidak boleh hanya membaca `polling_logs`. Ia wajib menambahkan dua hal:
+
+1. **Deteksi kebasian** — sumber dinyatakan tidak sehat kalau `last_success_at` lebih tua dari sekitar 2,5× interval polling, terlepas dari `consecutive_failures`. Ambangnya jangan terlalu longgar: dengan ambang 3× interval (900 detik), gangguan dua siklus seperti di atas (600 detik) justru lolos tanpa terdeteksi.
+2. **Membaca `net._http_response`** — inilah satu-satunya sumber kebenaran untuk kegagalan di lapis transport (TLS, DNS, timeout koneksi).
 
 **Kalau alert masuk database tapi dashboard diam:** itu bukan soal scheduler. Realtime tunduk pada RLS, jadi dashboard wajib memakai sesi login. Jalankan `npm run verify:realtime` untuk memastikan jalur Realtime-nya sendiri sehat.
 
