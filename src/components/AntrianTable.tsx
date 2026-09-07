@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatClock, BUSINESS_TZ_LABEL } from '@/lib/time';
+import { AlertDetail } from './AlertDetail';
 
 export interface AlertRow {
   id: string;
@@ -52,6 +53,7 @@ export function AntrianTable({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasil, setHasil] = useState<string | null>(null);
+  const [detail, setDetail] = useState<string | null>(null);
 
   const semuaTerpilih = rows.length > 0 && rows.every((r) => pilih.has(r.id));
 
@@ -141,13 +143,13 @@ export function AntrianTable({
                 </th>
               )}
               <Th>Severity</Th><Th>Unit</Th><Th>Jenis</Th><Th>Cabang / Project</Th>
-              <Th>Kejadian</Th><Th>Terakhir</Th><Th>Status</Th>
+              <Th>Kejadian</Th><Th>Terakhir</Th><Th>Status</Th><Th></Th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={canClose ? 8 : 7} className="px-4 py-8 text-content-secondary">
+                <td colSpan={canClose ? 9 : 8} className="px-4 py-8 text-content-secondary">
                   Tidak ada alert yang cocok dengan filter ini.
                 </td>
               </tr>
@@ -191,11 +193,21 @@ export function AntrianTable({
                     {r.status}
                   </span>
                 </Td>
+                <Td>
+                  <button
+                    onClick={() => setDetail(r.id)}
+                    className="rounded-btn border border-line px-2.5 py-1 text-xs text-content-secondary transition-colors hover:border-brand hover:text-content-primary"
+                  >
+                    Detail
+                  </button>
+                </Td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {detail && <AlertDetail alertId={detail} onClose={() => setDetail(null)} />}
 
       {modal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
@@ -266,7 +278,7 @@ function bersihkan(f: Record<string, string | undefined>) {
   return out;
 }
 
-function Th({ children }: { children: React.ReactNode }) {
+function Th({ children }: { children?: React.ReactNode }) {
   return <th className="whitespace-nowrap px-4 py-3 font-medium">{children}</th>;
 }
 

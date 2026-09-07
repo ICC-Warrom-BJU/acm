@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { formatClock, BUSINESS_TZ_LABEL } from '@/lib/time';
+import { AlertDetail } from './AlertDetail';
 
 /**
  * Feed alert realtime (UIUX §7 kanan, §9 "Item Feed Alert").
@@ -41,6 +42,7 @@ export function AlertFeed({ wall = false, initial = [] }: { wall?: boolean; init
   const [alerts, setAlerts] = useState<Alert[]>(initial);
   const [live, setLive] = useState(false);
   const [needsAuth, setNeedsAuth] = useState(false);
+  const [detail, setDetail] = useState<string | null>(null);
   const seen = useRef<Set<string>>(new Set(initial.map((a) => a.id)));
 
   useEffect(() => {
@@ -211,6 +213,16 @@ export function AlertFeed({ wall = false, initial = [] }: { wall?: boolean; init
               <span className={`font-mono ${scale.meta} text-content-secondary`}>
                 {formatClock(a.last_seen_at)} {BUSINESS_TZ_LABEL}
               </span>
+
+              {/* Opsional, bukan wajib: wall display murni tanpa perangkat
+                  input tetap berfungsi penuh tanpa pernah menekan ini
+                  (UIUX §8). */}
+              <button
+                onClick={() => setDetail(a.id)}
+                className={`ml-auto rounded-btn border border-line px-2.5 py-0.5 ${scale.meta} text-content-secondary transition-colors hover:border-brand hover:text-content-primary`}
+              >
+                Detail
+              </button>
             </div>
 
             <div className={`mt-1 ${scale.meta} text-content-secondary`}>
@@ -227,6 +239,8 @@ export function AlertFeed({ wall = false, initial = [] }: { wall?: boolean; init
           </article>
         ))}
       </div>
+
+      {detail && <AlertDetail alertId={detail} onClose={() => setDetail(null)} />}
     </section>
   );
 }
