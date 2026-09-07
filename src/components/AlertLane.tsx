@@ -28,6 +28,22 @@ export function AlertLane({
 }) {
   const kritis = alerts.filter((a) => a.severity === 'critical').length;
   const kejadian = alerts.reduce((n, a) => n + a.occurrence_count, 0);
+  const ditangani = alerts.filter((a) => a.status === 'acknowledged').length;
+
+  /*
+    Yang BELUM ditangani naik ke atas. Urutan waktu tetap berlaku di dalam
+    tiap kelompok.
+
+    Tanpa ini, alert yang sudah dipegang seseorang bisa menempati baris teratas
+    hanya karena kejadiannya paling baru — dan yang belum tersentuh justru
+    terdorong ke bawah, di luar pandangan.
+  */
+  const urut = [...alerts].sort((x, y) => {
+    const bx = x.status === 'acknowledged' ? 1 : 0;
+    const by = y.status === 'acknowledged' ? 1 : 0;
+    if (bx !== by) return bx - by;
+    return y.last_seen_at.localeCompare(x.last_seen_at);
+  });
 
   const s = wall
     ? { judul: 'text-2xl', angka: 'text-2xl', meta: 'text-base', jarak: 'space-y-2' }
@@ -47,6 +63,11 @@ export function AlertLane({
           )}
           <span className={`font-mono font-medium ${s.angka}`}>{alerts.length}</span>
           <span className="text-content-secondary">unit · {kejadian}×</span>
+          {ditangani > 0 && (
+            <span className="text-brand" title={`${ditangani} sudah ditangani operator`}>
+              {ditangani} ditangani
+            </span>
+          )}
         </div>
       </header>
 
@@ -54,7 +75,7 @@ export function AlertLane({
         {alerts.length === 0 ? (
           <p className={`px-1 py-3 text-content-secondary ${s.meta}`}>Tidak ada alert aktif.</p>
         ) : (
-          alerts.map((a) => <AlertCard key={a.id} a={a} wall={wall} onDetail={onDetail} />)
+          urut.map((a) => <AlertCard key={a.id} a={a} wall={wall} onDetail={onDetail} />)
         )}
       </div>
     </section>

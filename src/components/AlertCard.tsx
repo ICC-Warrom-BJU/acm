@@ -1,6 +1,6 @@
 'use client';
 
-import { formatClock } from '@/lib/time';
+import { formatClock, formatJam } from '@/lib/time';
 import { SEVERITY_BADGE, SEVERITY_BORDER, metrik, type Alert } from '@/lib/alert';
 
 /**
@@ -61,6 +61,16 @@ export function AlertCard({
   */
   const m = metrik(a);
 
+  /*
+    Alert yang sudah di-acknowledge sengaja TETAP tampil — wall display adalah
+    layar kesadaran bersama, dan menyembunyikan pekerjaan yang sedang berjalan
+    justru membuat operator lain mengira belum ada yang menanganinya.
+
+    Yang diubah hanya penekanannya: diredupkan dan diberi label penangan,
+    supaya yang belum tersentuh tetap paling menonjol.
+  */
+  const ditangani = a.status === 'acknowledged';
+
   // Keterangan sekunder digabung supaya tidak memakan satu baris masing-masing.
   const keterangan = [
     a.vhcid ?? 'tidak terdaftar',
@@ -73,7 +83,7 @@ export function AlertCard({
     <article
       className={`alert-enter rounded-alert border-l-4 bg-surface-elevated ${s.pad} ${
         SEVERITY_BORDER[a.severity] ?? 'border-l-severity-unknown'
-      }`}
+      } ${ditangani ? 'opacity-60' : ''}`}
     >
       <div className="flex items-center justify-between gap-2">
         {/* VHCID & no. plat monospace: mata operator langsung membedakan data
@@ -112,6 +122,20 @@ export function AlertCard({
           </span>
         </div>
       </div>
+
+      {ditangani && (
+        /* Warna brand, bukan warna severity: ini status penanganan, bukan
+           tingkat kegawatan (UIUX §10 melarang warna severity untuk elemen
+           non-alert). */
+        <p className={`mt-1 flex items-center gap-1.5 ${s.meta} text-brand`}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+          Ditangani
+          {a.ack?.full_name ? ` ${a.ack.full_name}` : ''}
+          {a.acknowledged_at ? ` · ${formatJam(a.acknowledged_at)}` : ''}
+        </p>
+      )}
 
       <div className={`${wall ? 'mt-1' : 'mt-0.5'} flex items-center gap-2 ${s.meta} text-content-secondary`}>
         <p className="min-w-0 flex-1 truncate font-mono">
