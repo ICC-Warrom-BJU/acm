@@ -41,12 +41,16 @@ export function AlertCard({
         tombol: 'text-sm px-2.5 py-1',
       }
     : {
-        pad: 'p-3',
-        plat: 'text-lg leading-tight',
-        badge: 'text-[11px] px-2 py-0.5',
-        speed: 'text-lg',
-        meta: 'text-xs',
-        tombol: 'text-[11px] px-2 py-0.5',
+        // Skala padat untuk layar kerja. 13px untuk data identitas, 11px untuk
+        // keterangan sekunder — di bawah 14px yang disebut UIUX §3 sebagai
+        // ukuran body layar kerja, karena ini daftar padat yang dipindai dari
+        // jarak 50 cm, bukan teks yang dibaca menerus.
+        pad: 'px-2.5 py-1.5',
+        plat: 'text-[13px] leading-tight',
+        badge: 'text-[10px] px-1.5 py-0',
+        speed: 'text-[13px]',
+        meta: 'text-[11px]',
+        tombol: 'text-[10px] px-1.5 py-0',
       };
 
   const kmh = kecepatan(a);
@@ -80,7 +84,7 @@ export function AlertCard({
           {kmh != null && (
             <span className={`font-mono font-medium text-severity-critical ${s.speed}`}>
               {kmh}
-              <span className={s.meta}> km/j</span>
+              <span className={wall ? s.meta : 'text-[10px]'}> km/j</span>
             </span>
           )}
 
@@ -94,7 +98,7 @@ export function AlertCard({
         </div>
       </div>
 
-      <div className={`mt-1 flex items-center gap-2 ${s.meta} text-content-secondary`}>
+      <div className={`${wall ? 'mt-1' : 'mt-0.5'} flex items-center gap-2 ${s.meta} text-content-secondary`}>
         <p className="min-w-0 flex-1 truncate font-mono">
           {keterangan.join(' · ')}
           {!a.cabang && (

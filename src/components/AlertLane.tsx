@@ -31,7 +31,7 @@ export function AlertLane({
 
   const s = wall
     ? { judul: 'text-2xl', angka: 'text-2xl', meta: 'text-base', jarak: 'space-y-2' }
-    : { judul: 'text-sm', angka: 'text-base', meta: 'text-[11px]', jarak: 'space-y-1.5' };
+    : { judul: 'text-[13px]', angka: 'text-sm', meta: 'text-[10px]', jarak: 'space-y-1' };
 
   return (
     <section className="flex min-h-0 flex-col rounded-card bg-surface-base">
