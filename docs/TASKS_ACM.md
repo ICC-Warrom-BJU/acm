@@ -1,0 +1,74 @@
+# TASKS — ACM Fase 1 (Mulai dari Speed Flag)
+
+Referensi: `PRD_ACM.md`, `API_LIST_ACM.md`, `FINDINGS_API_M0.md`
+
+> **Status 2026-09-07:** Milestone 0 selesai — API sudah diuji langsung dan hasilnya
+> ada di `FINDINGS_API_M0.md`. Beberapa asumsi di dokumen terkoreksi di sana.
+> Milestone 1 sudah terbangun kodenya; yang tersisa adalah menjalankan migrasi
+> di project Supabase dan verifikasi end-to-end di lingkungan sungguhan.
+
+Urutan di bawah disusun supaya **Speed Flag jadi vertical slice pertama yang jalan end-to-end** (dari polling sampai tampil di dashboard), sebelum menambah 3 API yang berbagi endpoint (`Notifikasi/Operation`).
+
+---
+
+## Milestone 0 — Investigasi & Setup Dasar
+
+- [x] Uji panggilan langsung ke `POST /api/report/speed_flag` (Speed Flag) dengan token & body yang diberikan, untuk mendapatkan contoh response asli
+- [x] Konfirmasi cara pengiriman token: header `Authorization`, header custom, atau bagian body/query
+- [x] Dari contoh response Speed Flag, identifikasi nama field: VHCID, lat, long, waktu kejadian, severity (jika ada)
+- [x] Konfirmasi apakah `start_time`/`stop_time` bisa dipakai untuk window pendek (mis. 5 menit terakhir) untuk kebutuhan polling berkala, bukan cuma rentang laporan panjang
+- [x] Uji panggilan langsung ke `POST /api/Notifikasi/Operation` (Parking/Idle/Fatigue) untuk mendapatkan contoh response dan menemukan field pembeda 3 jenis notifikasi
+- [x] Berdasarkan hasil di atas, putuskan: 1 config sumber dengan pemecahan alert_type di Node.js, atau pendekatan lain (lihat catatan di `API_LIST_ACM.md`)
+- [ ] Setup project Supabase (aktifkan ekstensi `pg_cron` dan `pg_net`)
+- [ ] Setup project Vercel + inisialisasi Next.js
+- [x] Buat migrasi skema database sesuai PRD §6 (`master_vehicles`, `alert_sources`, `alerts`, `alert_daily_summary`, `polling_logs`, `user_profiles`)
+- [x] Setup Supabase Auth + tabel `user_profiles` dengan 3 role (super_admin, staff_it, management)
+
+## Milestone 1 — Speed Flag End-to-End (Vertical Slice Pertama)
+
+- [~] Insert konfigurasi `alert_sources` untuk Speed Flag — skrip seed siap (`scripts/seed-sources.mjs`) dengan `field_mapping` terverifikasi, tapi belum dijalankan karena project Supabase belum ada
+- [x] Bangun endpoint internal `POST /api/internal/poll/:source_id` (generik, tidak hardcode untuk Speed Flag saja) — ambil config dari DB, panggil API eksternal, ekstrak field sesuai `field_mapping`
+- [x] Implementasikan logika deduplikasi harian (PRD §7.1) di endpoint internal ini
+- [x] Implementasikan update `last_success_at` / `last_error` / `consecutive_failures` pada `alert_sources` setiap eksekusi
+- [x] Buat fungsi `reschedule_alert_source()` + trigger di Postgres untuk auto-schedule `pg_cron` saat config berubah
+- [ ] Jadwalkan `pg_cron` untuk source Speed Flag dan verifikasi job berjalan sesuai interval
+- [x] Bangun halaman dashboard minimal: feed alert (kanan) + grafik jumlah event (kiri), subscribe ke Supabase Realtime untuk tabel `alerts`
+- [ ] Verifikasi end-to-end: alert Speed Flag baru muncul di dashboard tanpa refresh manual
+
+## Milestone 2 — Modul Pendukung Dasar
+
+- [ ] Halaman konfigurasi sumber API (CRUD `alert_sources`) dengan token selalu masked setelah disimpan
+- [ ] Tombol "Test Sekarang" per sumber (memanggil `/api/internal/poll/:source_id` secara manual)
+- [ ] Modul kesehatan API — kartu status per sumber + log polling (`polling_logs`)
+- [ ] Modul Master Data VHCID — CRUD dasar dulu (import massal bisa menyusul)
+- [~] RBAC — RLS Postgres selesai (`0003_rls.sql`). Penegakan di API layer belum: route yang menghadap pengguna baru dibangun di Milestone 2
+
+## Milestone 3 — Tambah 3 API Berbagi Endpoint (Parking/Idle/Fatigue)
+
+- [ ] Implementasikan mekanisme pemecahan response satu endpoint menjadi 3 alert_type (berdasarkan keputusan Milestone 0)
+- [ ] Insert konfigurasi untuk Parking Overtime, Idle Overtime, Fatigue Driving
+- [ ] Verifikasi ketiga jenis alert muncul benar di dashboard dengan alert_type yang sesuai, tanpa duplikasi pemanggilan endpoint
+
+## Milestone 4 — Modul Lanjutan
+
+- [ ] Antrian alert + acknowledge/close (single & bulk close dengan filter)
+- [ ] Job harian `alert_daily_summary` (PRD §7.1)
+- [ ] Summary Dashboard (mingguan/bulanan) untuk Management
+- [ ] Modul heatmap (menggunakan lat/long dari alert, per catatan bahwa tiap API sudah punya koordinat sendiri)
+- [ ] Export raw data ke Excel/JSON dengan filter
+- [ ] Import massal Master Data VHCID (dengan preview sebelum commit)
+- [ ] Job pembersihan raw data > 90 hari (retensi Fase 1)
+
+## Milestone 5 — Kesiapan Rilis
+
+- [ ] Review keamanan: enkripsi token, RLS policy per role, HTTPS enforced
+- [ ] Uji beban dasar dengan volume mendekati skala nyata (1000+ unit) pada tabel `alerts` dan `master_vehicles`
+- [ ] Setup job ping berkala agar proyek Supabase gratis tidak auto-pause
+- [ ] Dokumentasi singkat cara menambah sumber API baru lewat UI (untuk staf non-developer)
+- [ ] Go-live Fase 1 dengan 4 API: Speed Flag, Parking Overtime, Idle Overtime, Fatigue Driving
+
+---
+
+## Catatan
+
+Milestone 0 adalah **blocker** untuk hampir semua milestone berikutnya — tanpa contoh response asli dari kedua endpoint, `field_mapping` dan keputusan arsitektur untuk 3 API berbagi endpoint tidak bisa difinalkan. Prioritaskan ini sebelum mulai coding modul lain.

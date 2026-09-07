@@ -1,0 +1,38 @@
+{
+  "name": "acm",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Alert Centre Monitoring — PT. Bumi Jasa Utama",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "seed": "node --env-file=.env.local scripts/seed-sources.mjs",
+    "import:vehicles": "node --env-file=.env.local scripts/import-master-vehicles.mjs",
+    "poll": "node --import ./scripts/ts-resolve.mjs --env-file=.env.local scripts/run-poll.mjs",
+    "verify:api": "node --env-file=.env.local scripts/verify-pipeline.mjs",
+    "verify:realtime": "node --env-file=.env.local scripts/verify-realtime.mjs",
+    "set:baseurl": "node --env-file=.env.local scripts/set-base-url.mjs",
+    "verify:cron": "node --env-file=.env.local scripts/verify-cron.mjs"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.45.4",
+    "exceljs": "^4.4.0",
+    "next": "^14.2.15",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.12.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.5",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "typescript": "^5.6.3"
+  }
+}

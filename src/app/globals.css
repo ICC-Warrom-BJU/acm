@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Token warna — UIUX_ACM.md §2 */
+
+:root {
+  --surface-base: #ffffff;
+  --surface-elevated: #f7f9f8;
+  --brand-primary: #0f6e56;
+  --brand-primary-hover: #0c5a46;
+  --brand-primary-soft: #e1f5ee;
+  --text-primary: #111827;
+  --text-secondary: #5f5e5a;
+  --border-default: #e3e5e1;
+
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.25);
+
+  --font-sans: 'Plus Jakarta Sans';
+  --font-mono: 'JetBrains Mono';
+}
+
+.dark {
+  /* Hampir hitam dengan nuansa hijau gelap — bertema, bukan hitam generik. */
+  --surface-base: #0b0f0e;
+  --surface-elevated: #141a18;
+  --brand-primary: #1d9e75;
+  --brand-primary-hover: #23b385;
+  --brand-primary-soft: rgba(29, 158, 117, 0.16);
+  --text-primary: #f1f5f3;
+  --text-secondary: #9ca39f;
+  --border-default: rgba(255, 255, 255, 0.08);
+
+  --glass-bg: rgba(20, 26, 24, 0.55);
+  --glass-border: rgba(29, 158, 117, 0.18);
+}
+
+body {
+  background: var(--surface-base);
+  color: var(--text-primary);
+}
+
+/*
+  Glass hanya untuk "furnitur": sidebar, topbar, kartu statistik, modal.
+  Tidak pernah di belakang item alert, chart, atau badge severity (UIUX §4) —
+  transparansi menurunkan kontras, dan dari 2-4 meter itu bisa membuat operator
+  salah baca angka penting.
+*/
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+}
+
+/*
+  Animasi masuk untuk alert baru: sekali saja, tidak berulang. Layar wall
+  display menyala berjam-jam, dan apa pun yang berkedip terus-menerus
+  melelahkan mata (UIUX §8).
+*/
+@keyframes alert-enter {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.alert-enter {
+  animation: alert-enter 240ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alert-enter { animation: none; }
+}
+
+/* Mode wall display: safe zone 5% karena banyak TV komersial meng-crop tepi (UIUX §8). */
+.wall-safe {
+  padding: 2.5vh 2.5vw;
+}
