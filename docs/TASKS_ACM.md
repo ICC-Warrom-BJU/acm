@@ -54,13 +54,13 @@ Urutan di bawah disusun supaya **Speed Flag jadi vertical slice pertama yang jal
 
 ## Milestone 4 — Modul Lanjutan
 
-- [ ] Antrian alert + acknowledge/close (single & bulk close dengan filter)
-- [ ] Job harian `alert_daily_summary` (PRD §7.1)
-- [ ] Summary Dashboard (mingguan/bulanan) untuk Management
-- [ ] Modul heatmap (menggunakan lat/long dari alert, per catatan bahwa tiap API sudah punya koordinat sendiri)
-- [ ] Export raw data ke Excel/JSON dengan filter
-- [ ] Import massal Master Data VHCID (dengan preview sebelum commit)
-- [ ] Job pembersihan raw data > 90 hari (retensi Fase 1)
+- [x] Antrian alert (`/antrian`) + acknowledge/close, termasuk bulk close berbasis filter. Baris yang sudah tertutup tidak pernah disentuh ulang agar jejak audit tidak tertimpa
+- [x] Job `alert_daily_summary` — `rollup_daily()` dijadwalkan tiap jam (bukan sekali tengah malam), idempoten lewat `uq_daily_summary`
+- [x] Summary Dashboard (`/ringkasan`) — tren harian, per jenis, per cabang, dan 15 unit teratas. Sumbernya `alert_daily_summary` yang permanen, bukan raw yang hanya 90 hari
+- [x] Modul heatmap (`/heatmap`) — Leaflet + leaflet.heat, bobot titik memperhitungkan severity dan kejadian berulang
+- [x] Export Excel/JSON (`/api/alerts/export`) dengan filter. Management dibatasi ke data ringkasan saja (PRD §4); timestamp dikonversi ke WITA karena Excel tidak menyimpan zona waktu
+- [x] Import massal Master Data VHCID — `npm run import:vehicles`, pratinjau dulu sebelum `--commit`. 517 unit sudah terimpor
+- [x] Job pembersihan raw > 90 hari — `purge_old_data()` harian; agregat harian sengaja tidak ikut terhapus
 
 ## Milestone 5 — Kesiapan Rilis
 

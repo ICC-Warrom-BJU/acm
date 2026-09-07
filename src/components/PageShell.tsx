@@ -28,6 +28,9 @@ export function PageShell({
 
   const nav = [
     { href: '/', label: 'Dashboard', staffOnly: false },
+    { href: '/antrian', label: 'Antrian', staffOnly: false },
+    { href: '/ringkasan', label: 'Ringkasan', staffOnly: false },
+    { href: '/heatmap', label: 'Heatmap', staffOnly: false },
     { href: '/master-unit', label: 'Master Unit', staffOnly: false },
     { href: '/kesehatan', label: 'Kesehatan API', staffOnly: true },
     { href: '/sumber', label: 'Sumber', staffOnly: true },

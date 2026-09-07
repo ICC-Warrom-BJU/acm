@@ -70,6 +70,9 @@ export function Dashboard({
               mereka memang tidak punya akses (PRD §4), jadi menampilkan tautan
               yang pasti ditolak hanya membingungkan. */}
           <nav className="flex gap-1 text-sm">
+            <NavLink href="/antrian">Antrian</NavLink>
+            <NavLink href="/ringkasan">Ringkasan</NavLink>
+            <NavLink href="/heatmap">Heatmap</NavLink>
             <NavLink href="/master-unit">Master Unit</NavLink>
             {isStaff && (
               <>
