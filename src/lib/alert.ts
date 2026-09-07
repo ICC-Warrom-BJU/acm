@@ -36,14 +36,25 @@ export interface Alert {
    */
   ket?: string | null;
 
+  /**
+   * Lama mengemudi menerus, khusus fatigue_driving ("4h").
+   *
+   * Regulasinya melarang mengemudi lebih dari 4 jam tanpa henti, jadi angka
+   * inilah isi pelanggarannya — setara `speed` pada speed_flag. Berbeda dari
+   * jenis lain, nilainya tersedia sebagai field tersendiri sehingga tidak perlu
+   * diurai dari teks.
+   */
+  dm?: string | null;
+
   raw_payload?: {
     speed?: number | string | null;
     ket_notif?: string | null;
+    durasi_moving?: string | null;
   } | null;
 }
 
 export const KOLOM_ALERT =
-  'id, vhcid, alert_type, severity, no_plat, cabang, group_project, occurrence_count, last_seen_at, status, speed:raw_payload->speed, ket:raw_payload->>ket_notif';
+  'id, vhcid, alert_type, severity, no_plat, cabang, group_project, occurrence_count, last_seen_at, status, speed:raw_payload->speed, ket:raw_payload->>ket_notif, dm:raw_payload->>durasi_moving';
 
 /** Warna severity — sama di mode terang maupun gelap (UIUX §2.3). */
 export const SEVERITY_BADGE: Record<string, string> = {
@@ -86,7 +97,35 @@ export function kecepatan(a: Alert): number | null {
  * Ini pengurai berbasis teks, jadi rapuh terhadap perubahan format di sisi
  * EASYGO. Itu risiko yang disadari: API tidak menyediakan alternatif numerik.
  */
+const SATUAN: Record<string, string> = { h: 'j', m: 'm', s: 'd' };
+
+/** "4h" jadi "4j", "1h, 30m" jadi "1j 30m". Null kalau tak ada pola waktu. */
+function formatDurasi(teks: string): string | null {
+  const bagian = [...teks.matchAll(/(\d+)\s*([hms])/gi)];
+  if (bagian.length === 0) return null;
+  return bagian.map((b) => b[1] + SATUAN[b[2].toLowerCase()]).join(' ');
+}
+
 export function durasiPelanggaran(a: Alert): string | null {
+  /*
+    Field numerik lebih dulu, penguraian teks belakangan.
+
+    fatigue_driving menyimpan lama mengemudi di `durasi_moving` ("4h") — inti
+    pelanggarannya, karena regulasinya melarang mengemudi lebih dari 4 jam
+    menerus. Nilainya diambil langsung, tanpa menebak dari teks.
+
+    Field ini eksklusif milik fatigue_driving; jenis lain selalu null
+    (diperiksa terhadap seluruh alert produksi pada 2026-09-07), jadi tidak ada
+    risiko jenis lain menampilkan angka yang bukan miliknya.
+
+    Tanpa "≥" karena ini durasi terukur, bukan ambang yang terlampaui.
+  */
+  const dm = a.dm ?? a.raw_payload?.durasi_moving;
+  if (dm) {
+    const hasil = formatDurasi(String(dm));
+    if (hasil) return hasil;
+  }
+
   const teks = a.ket ?? a.raw_payload?.ket_notif;
   if (!teks) return null;
 
@@ -94,11 +133,8 @@ export function durasiPelanggaran(a: Alert): string | null {
   if (!cocok) return null;
 
   const sisa = cocok[1].trim();
-  const bagian = [...sisa.matchAll(/(\d+)\s*([hms])/gi)];
-  if (bagian.length === 0) return sisa.slice(0, 16);
-
-  const satuan: Record<string, string> = { h: 'j', m: 'm', s: 'd' };
-  return '≥ ' + bagian.map((b) => b[1] + satuan[b[2].toLowerCase()]).join(' ');
+  const hasil = formatDurasi(sisa);
+  return hasil ? '≥ ' + hasil : sisa.slice(0, 16);
 }
 
 /** Label jenis alert untuk manusia. */
