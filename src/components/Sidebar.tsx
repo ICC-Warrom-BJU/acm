@@ -34,6 +34,7 @@ export function Sidebar({ role, ciut = false }: { role: string; ciut?: boolean }
     { href: '/kesehatan', label: 'Kesehatan API', ikon: <IkonDenyut />, staffOnly: true },
     { href: '/sumber', label: 'Sumber API', ikon: <IkonPlug />, staffOnly: true },
     { href: '/jenis-alert', label: 'Jenis Alert', ikon: <IkonTag />, staffOnly: true },
+    { href: '/tampilan', label: 'Konfig Tampilan', ikon: <IkonMata />, staffOnly: true },
   ].filter((i) => staff || !i.staffOnly);
 
   return (
@@ -105,6 +106,9 @@ const IkonDenyut = () => (
 );
 const IkonPlug = () => (
   <svg {...svg}><path d="M9 3v6M15 3v6" /><path d="M6 9h12v3a6 6 0 0 1-12 0z" /><path d="M12 18v3" /></svg>
+);
+const IkonMata = () => (
+  <svg {...svg}><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z" /><circle cx="12" cy="12" r="2.5" /></svg>
 );
 const IkonTag = () => (
   <svg {...svg}><path d="M3 12V5a2 2 0 0 1 2-2h7l9 9-9 9z" /><circle cx="7.5" cy="7.5" r="1.5" /></svg>

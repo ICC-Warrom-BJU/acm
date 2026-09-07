@@ -10,6 +10,7 @@ import { Sidebar } from './Sidebar';
 import { ThemeToggle } from './ThemeToggle';
 import { UserMenu } from './UserMenu';
 import { KOLOM_ALERT, urutkanJenis, type Alert } from '@/lib/alert';
+import { buatPenyaring, type KonfigCabang } from '@/lib/visibility';
 
 /**
  * Dashboard (UIUX §7).
@@ -36,6 +37,7 @@ export function Dashboard({
   const [perluLogin, setPerluLogin] = useState(false);
   const [detail, setDetail] = useState<string | null>(null);
   const [cabang, setCabang] = useState('');
+  const [konfig, setKonfig] = useState<KonfigCabang[]>([]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -53,6 +55,16 @@ export function Dashboard({
           setAlerts((data as unknown as Alert[]) ?? []);
           setLoading(false);
         }
+      });
+
+    // Aturan tampilan per cabang. Dibaca sekali saat dashboard dibuka; kalau
+    // konfigurasinya diubah, halaman perlu dimuat ulang — perubahan aturan
+    // tampilan bukan sesuatu yang terjadi tiap menit.
+    supabase
+      .from('branch_alert_config')
+      .select('cabang, alert_types')
+      .then(({ data }) => {
+        if (!batal && data) setKonfig(data as KonfigCabang[]);
       });
 
     const terima = (payload: { new: unknown }) => {
@@ -148,10 +160,21 @@ export function Dashboard({
     [alerts],
   );
 
-  const terfilter = useMemo(
-    () => (cabang ? alerts.filter((a) => a.cabang === cabang) : alerts),
-    [alerts, cabang],
-  );
+  const terfilter = useMemo(() => {
+    // Dua penyaringan berbeda peran: `penyaring` adalah aturan tetap dari
+    // konfigurasi cabang, `cabang` adalah pilihan sesaat operator di topbar.
+    const penyaring = buatPenyaring(konfig);
+    const hasil = alerts.filter(penyaring);
+    return cabang ? hasil.filter((a) => a.cabang === cabang) : hasil;
+  }, [alerts, cabang, konfig]);
+
+  // Berapa yang disembunyikan aturan tampilan. Ditampilkan supaya tidak ada
+  // yang mengira dashboard sedang sepi padahal alertnya sengaja disaring.
+  const disembunyikan = useMemo(() => {
+    const penyaring = buatPenyaring(konfig);
+    const dasar = cabang ? alerts.filter((a) => a.cabang === cabang) : alerts;
+    return dasar.length - dasar.filter(penyaring).length;
+  }, [alerts, cabang, konfig]);
 
   // Lajur dibentuk dari jenis yang benar-benar ada di data, bukan daftar tetap:
   // jenis alert bisa bertambah lewat master data tanpa sentuh kode.
@@ -208,6 +231,15 @@ export function Dashboard({
             )}
 
             {/* Status koneksi realtime (UIUX §9). */}
+            {disembunyikan > 0 && (
+              <span
+                className="text-sm text-content-secondary"
+                title="Disembunyikan oleh Konfigurasi Tampilan. Datanya tetap tersimpan dan tetap masuk laporan."
+              >
+                {disembunyikan} disaring
+              </span>
+            )}
+
             <span className="flex items-center gap-2 text-sm text-content-secondary">
               <span
                 className={`h-2.5 w-2.5 rounded-full ${
