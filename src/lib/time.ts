@@ -55,6 +55,15 @@ export function businessDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-CA', { timeZone: BUSINESS_TIMEZONE });
 }
 
+/** Jam dan menit saja, mis. "08:00" — untuk tempat yang ringkas. */
+export function formatJam(iso: string): string {
+  return new Date(iso).toLocaleTimeString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: BUSINESS_TIMEZONE,
+  });
+}
+
 export function formatClock(iso: string): string {
   return new Date(iso).toLocaleTimeString('id-ID', {
     hour: '2-digit',

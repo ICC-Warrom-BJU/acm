@@ -1,7 +1,7 @@
 'use client';
 
 import { formatClock } from '@/lib/time';
-import { SEVERITY_BADGE, SEVERITY_BORDER, kecepatan, durasiPelanggaran, type Alert } from '@/lib/alert';
+import { SEVERITY_BADGE, SEVERITY_BORDER, metrik, type Alert } from '@/lib/alert';
 
 /**
  * Kartu satu alert di feed (UIUX §9 "Item Feed Alert").
@@ -59,8 +59,7 @@ export function AlertCard({
     Diletakkan di posisi yang sama supaya mata operator selalu menemukan angka
     terpenting di tempat yang sama, apa pun jenis alertnya.
   */
-  const kmh = kecepatan(a);
-  const lama = kmh == null ? durasiPelanggaran(a) : null;
+  const m = metrik(a);
 
   // Keterangan sekunder digabung supaya tidak memakan satu baris masing-masing.
   const keterangan = [
@@ -88,16 +87,19 @@ export function AlertCard({
               pendukung — jadi diberi warna kritis. Ini pemakaian warna severity
               yang sah (UIUX §10): yang dilarang adalah memakainya untuk elemen
               non-alert, sedangkan angka ini justru isi alertnya. */}
-          {kmh != null && (
-            <span className={`font-mono font-medium text-severity-critical ${s.speed}`}>
-              {kmh}
-              <span className={wall ? s.meta : 'text-[10px]'}> km/j</span>
-            </span>
-          )}
-
-          {lama != null && (
-            <span className={`whitespace-nowrap font-mono font-medium text-severity-critical ${s.speed}`}>
-              {lama}
+          {m != null && (
+            <span className="flex items-baseline gap-1 whitespace-nowrap font-mono">
+              <span className={`font-medium text-severity-critical ${s.speed}`}>
+                {m.utama}
+                {m.satuan && (
+                  <span className={wall ? s.meta : 'text-[10px]'}> {m.satuan}</span>
+                )}
+              </span>
+              {m.sekunder && (
+                <span className={`${wall ? s.meta : 'text-[10px]'} text-content-secondary`}>
+                  · {m.sekunder}
+                </span>
+              )}
             </span>
           )}
 

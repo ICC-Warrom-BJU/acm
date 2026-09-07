@@ -1,3 +1,5 @@
+import { formatJam } from './time';
+
 /**
  * Tipe dan helper alert yang dipakai bersama oleh feed, lane, grafik, dan
  * dashboard. Dikumpulkan di satu tempat supaya definisi severity tidak
@@ -13,6 +15,7 @@ export interface Alert {
   cabang: string | null;
   group_project: string | null;
   occurrence_count: number;
+  first_seen_at?: string | null;
   last_seen_at: string;
   status: string;
 
@@ -54,7 +57,7 @@ export interface Alert {
 }
 
 export const KOLOM_ALERT =
-  'id, vhcid, alert_type, severity, no_plat, cabang, group_project, occurrence_count, last_seen_at, status, speed:raw_payload->speed, ket:raw_payload->>ket_notif, dm:raw_payload->>durasi_moving';
+  'id, vhcid, alert_type, severity, no_plat, cabang, group_project, occurrence_count, first_seen_at, last_seen_at, status, speed:raw_payload->speed, ket:raw_payload->>ket_notif, dm:raw_payload->>durasi_moving';
 
 /** Warna severity — sama di mode terang maupun gelap (UIUX §2.3). */
 export const SEVERITY_BADGE: Record<string, string> = {
@@ -77,6 +80,15 @@ export function kecepatan(a: Alert): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+const SATUAN: Record<string, string> = { h: 'j', m: 'm', s: 'd' };
+
+/** "4h" jadi "4j", "1h, 30m" jadi "1j 30m". Null kalau tak ada pola waktu. */
+function formatDurasi(teks: string): string | null {
+  const bagian = [...teks.matchAll(/(\d+)\s*([hms])/gi)];
+  if (bagian.length === 0) return null;
+  return bagian.map((b) => b[1] + SATUAN[b[2].toLowerCase()]).join(' ');
+}
+
 /**
  * Durasi pelanggaran, diurai dari `ket_notif`.
  *
@@ -97,15 +109,6 @@ export function kecepatan(a: Alert): number | null {
  * Ini pengurai berbasis teks, jadi rapuh terhadap perubahan format di sisi
  * EASYGO. Itu risiko yang disadari: API tidak menyediakan alternatif numerik.
  */
-const SATUAN: Record<string, string> = { h: 'j', m: 'm', s: 'd' };
-
-/** "4h" jadi "4j", "1h, 30m" jadi "1j 30m". Null kalau tak ada pola waktu. */
-function formatDurasi(teks: string): string | null {
-  const bagian = [...teks.matchAll(/(\d+)\s*([hms])/gi)];
-  if (bagian.length === 0) return null;
-  return bagian.map((b) => b[1] + SATUAN[b[2].toLowerCase()]).join(' ');
-}
-
 export function durasiPelanggaran(a: Alert): string | null {
   /*
     Field numerik lebih dulu, penguraian teks belakangan.
@@ -135,6 +138,52 @@ export function durasiPelanggaran(a: Alert): string | null {
   const sisa = cocok[1].trim();
   const hasil = formatDurasi(sisa);
   return hasil ? '≥ ' + hasil : sisa.slice(0, 16);
+}
+
+export interface Metrik {
+  /** Angka besar berwarna kritis — inti pelanggarannya. */
+  utama: string;
+  /** Satuan kecil yang menempel, mis. "km/j". */
+  satuan?: string;
+  /** Keterangan kecil di sebelahnya, mis. durasi. */
+  sekunder?: string;
+}
+
+/**
+ * "Ukuran pelanggaran" satu alert — isi slot menonjol di kartu.
+ *
+ * Setiap jenis punya inti yang berbeda, dan slot ini menyesuaikan supaya mata
+ * operator selalu menemukan angka terpenting di tempat yang sama:
+ *
+ *   speed_flag         kecepatan          "74 km/j"
+ *   fatigue_driving    lama mengemudi     "4j"        (regulasi maks 4 jam menerus)
+ *   forbidden_driving  JAM kejadian       "08:00 · ≥ 1j 7m"
+ *   idle/parking       durasi             "≥ 1j 2m"
+ *
+ * forbidden_driving ditangani khusus karena pelanggarannya adalah *kapan*
+ * mengemudi, bukan berapa lama — mengemudi di jam yang tidak diperbolehkan.
+ * Menampilkan durasinya saja membuatnya mudah tertukar dengan fatigue driving,
+ * seolah-olah masalahnya lama mengemudi. Jamnya jadi angka utama, durasinya
+ * (lama mengemudi di dalam jam terlarang) mengikut sebagai keterangan.
+ *
+ * Jenis disebut eksplisit di sini, satu-satunya tempat di kode yang begitu.
+ * Ini keputusan penyajian yang terikat pada makna jenis tersebut, bukan
+ * konfigurasi — jenis baru dari master data tetap tampil benar lewat jalur
+ * umum di bawah, hanya tanpa perlakuan khusus.
+ */
+export function metrik(a: Alert): Metrik | null {
+  const kmh = kecepatan(a);
+  if (kmh != null) return { utama: String(kmh), satuan: 'km/j' };
+
+  const lama = durasiPelanggaran(a);
+
+  if (a.alert_type === 'forbidden_driving' && a.first_seen_at) {
+    // Jam MULAI, bukan jam terakhir terlihat: yang dilanggar adalah saat unit
+    // mulai bergerak di periode terlarang.
+    return { utama: formatJam(a.first_seen_at), sekunder: lama ?? undefined };
+  }
+
+  return lama ? { utama: lama } : null;
 }
 
 /** Label jenis alert untuk manusia. */
