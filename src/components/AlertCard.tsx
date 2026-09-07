@@ -132,7 +132,7 @@ export function AlertCard({
             <path d="M20 6L9 17l-5-5" />
           </svg>
           Ditangani
-          {a.ack?.full_name ? ` ${a.ack.full_name}` : ''}
+          {a.acknowledged_by_name ? ` ${a.acknowledged_by_name}` : ''}
           {a.acknowledged_at ? ` · ${formatJam(a.acknowledged_at)}` : ''}
         </p>
       )}

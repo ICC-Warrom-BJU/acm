@@ -16,6 +16,9 @@ export interface AlertRow {
   group_project: string | null;
   status: string;
   occurrence_count: number;
+  acknowledged_by_name?: string | null;
+  closed_by_name?: string | null;
+  close_note?: string | null;
   first_seen_at: string;
   last_seen_at: string;
 }
@@ -193,6 +196,19 @@ export function AntrianTable({
                   <span className={r.status === 'active' ? '' : 'text-content-secondary'}>
                     {r.status}
                   </span>
+                  {/* Siapa yang menangani — auditability (PRD §10). Tanpa ini,
+                      status "closed" tidak memberi tahu siapa pun bahwa ada
+                      orang yang sudah menindaklanjutinya. */}
+                  {(r.closed_by_name || r.acknowledged_by_name) && (
+                    <span className="block text-xs text-content-secondary">
+                      oleh {r.closed_by_name ?? r.acknowledged_by_name}
+                    </span>
+                  )}
+                  {r.close_note && (
+                    <span className="block max-w-[16rem] truncate text-xs text-content-secondary" title={r.close_note}>
+                      “{r.close_note}”
+                    </span>
+                  )}
                 </Td>
                 <Td>
                   <button

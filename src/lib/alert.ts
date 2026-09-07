@@ -25,7 +25,16 @@ export interface Alert {
    * sama untuk kejadian yang sama.
    */
   acknowledged_at?: string | null;
-  ack?: { full_name: string | null } | null;
+
+  /**
+   * Nama penangan, disalin ke baris alert (migrasi 0010).
+   *
+   * Tidak diambil lewat join ke user_profiles karena RLS di sana hanya
+   * mengizinkan seseorang membaca profilnya SENDIRI — Staff IT, pengguna utama
+   * layar ini, akan selalu mendapat null saat membaca nama rekannya. Sebagai
+   * kolom biasa, ia juga ikut terbawa event Realtime.
+   */
+  acknowledged_by_name?: string | null;
 
   /**
    * Kecepatan saat pelanggaran, khusus speed_flag.
@@ -65,7 +74,7 @@ export interface Alert {
 }
 
 export const KOLOM_ALERT =
-  'id, vhcid, alert_type, severity, no_plat, cabang, group_project, occurrence_count, first_seen_at, last_seen_at, status, acknowledged_at, ack:acknowledged_by(full_name), speed:raw_payload->speed, ket:raw_payload->>ket_notif, dm:raw_payload->>durasi_moving';
+  'id, vhcid, alert_type, severity, no_plat, cabang, group_project, occurrence_count, first_seen_at, last_seen_at, status, acknowledged_at, acknowledged_by_name, speed:raw_payload->speed, ket:raw_payload->>ket_notif, dm:raw_payload->>durasi_moving';
 
 /** Warna severity — sama di mode terang maupun gelap (UIUX §2.3). */
 export const SEVERITY_BADGE: Record<string, string> = {

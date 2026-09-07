@@ -58,12 +58,17 @@ export async function POST(req: NextRequest) {
           status: 'closed',
           closed_at: now,
           closed_by: user.id,
+          // Nama disalin ke baris alert karena RLS user_profiles hanya
+          // mengizinkan seseorang membaca profilnya sendiri — Staff IT tidak
+          // akan pernah bisa membaca nama rekannya lewat join (0010).
+          closed_by_name: user.fullName,
           close_note: typeof body.close_note === 'string' ? body.close_note.trim() || null : null,
         }
       : {
           status: 'acknowledged',
           acknowledged_at: now,
           acknowledged_by: user.id,
+          acknowledged_by_name: user.fullName,
         };
 
   // Klien ber-RLS, bukan service role: kalau kelak Staff IT dibatasi cabang,

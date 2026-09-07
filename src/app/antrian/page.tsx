@@ -22,7 +22,7 @@ export default async function AntrianPage({
   const dari = (hal - 1) * PER_HAL;
 
   const kolom =
-    'id, vhcid, no_plat, alert_type, severity, cabang, group_project, status, occurrence_count, first_seen_at, last_seen_at';
+    'id, vhcid, no_plat, alert_type, severity, cabang, group_project, status, occurrence_count, first_seen_at, last_seen_at, acknowledged_by_name, closed_by_name, close_note';
 
   let q = supabase.from('alerts').select(kolom, { count: 'exact' });
 
