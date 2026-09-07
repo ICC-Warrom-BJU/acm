@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import type { Alert } from './AlertFeed';
+import type { Alert } from '@/lib/alert';
 import { formatHour, BUSINESS_TZ_LABEL } from '@/lib/time';
 
 /**
