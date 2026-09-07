@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { formatClock, BUSINESS_TZ_LABEL, BUSINESS_TIMEZONE } from '@/lib/time';
+import { Modal } from './Modal';
 
 /**
  * Detail satu alert, termasuk payload asli dari API sumber.
@@ -29,14 +30,6 @@ export function AlertDetail({ alertId, onClose }: { alertId: string; onClose: ()
       });
   }, [alertId]);
 
-  // Esc menutup modal — operator yang membukanya dari keyboard tidak harus
-  // meraih mouse hanya untuk keluar.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
   const raw = (row?.raw_payload ?? {}) as Record<string, any>;
 
   // Koordinat dari kolom ternormalisasi lebih dulu; payload asli jadi cadangan
@@ -44,19 +37,27 @@ export function AlertDetail({ alertId, onClose }: { alertId: string; onClose: ()
   const lat = num(row?.lat) ?? num(raw.lat);
   const long = num(row?.long) ?? num(raw.lon) ?? num(raw.long);
 
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="glass max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-card p-6"
-        // Klik di dalam modal tidak boleh ikut menutupnya.
-        onClick={(e) => e.stopPropagation()}
-      >
-        {error && <p className="rounded-input bg-severity-critical p-3 text-white">{error}</p>}
+  const namaUnit = row?.no_plat ?? row?.vhcid ?? 'alert';
 
-        {!row && !error && <p className="text-content-secondary">Memuat detail…</p>}
+  return (
+    <Modal judul={`Detail alert ${namaUnit}`} onClose={onClose}>
+      <>
+        {/* role=alert supaya pembaca layar mengumumkan kegagalan, bukan hanya
+            memperlihatkannya (UX §8 aria-live-errors). */}
+        {error && (
+          <p role="alert" className="rounded-input bg-severity-critical p-3 text-white">
+            {error}
+          </p>
+        )}
+
+        {!row && !error && (
+          <div className="space-y-3" aria-live="polite" aria-busy="true">
+            <span className="sr-only">Memuat detail alert…</span>
+            <div className="skeleton h-8 w-56" />
+            <div className="skeleton h-4 w-40" />
+            <div className="skeleton h-24 w-full" />
+          </div>
+        )}
 
         {row && (
           <>
@@ -160,8 +161,8 @@ export function AlertDetail({ alertId, onClose }: { alertId: string; onClose: ()
             </p>
           </>
         )}
-      </div>
-    </div>
+      </>
+    </Modal>
   );
 }
 

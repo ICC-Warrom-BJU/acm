@@ -70,7 +70,7 @@ export function SumberTable({ rows }: { rows: Sumber[] }) {
   return (
     <div className="space-y-4">
       {error && (
-        <p className="rounded-input bg-severity-critical px-4 py-3 text-sm text-white">{error}</p>
+        <p role="alert" className="rounded-input bg-severity-critical px-4 py-3 text-sm text-white">{error}</p>
       )}
 
       {rows.map((r) => {
@@ -231,7 +231,7 @@ function Input({
       value={value ?? ''}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
-      className={`w-full rounded-input border border-line bg-surface-base px-3 py-2 outline-none focus:border-brand ${mono ? 'font-mono text-sm' : ''}`}
+      className={`w-full rounded-input border border-line bg-surface-base px-3 py-2 ${mono ? 'font-mono text-sm' : ''}`}
     />
   );
 }

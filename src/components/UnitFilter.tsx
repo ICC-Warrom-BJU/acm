@@ -50,7 +50,7 @@ export function UnitFilter({
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="mis. VEH0174682 atau DA 8893"
-            className="w-72 rounded-input border border-line bg-surface-elevated px-3 py-2 outline-none focus:border-brand"
+            className="w-72 rounded-input border border-line bg-surface-elevated px-3 py-2"
           />
         </div>
         <button
@@ -66,7 +66,7 @@ export function UnitFilter({
         <select
           value={cabangAktif}
           onChange={(e) => terapkan({ cabang: e.target.value })}
-          className="rounded-input border border-line bg-surface-elevated px-3 py-2 outline-none focus:border-brand"
+          className="rounded-input border border-line bg-surface-elevated px-3 py-2"
         >
           <option value="">Semua cabang</option>
           {cabangList.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -78,7 +78,7 @@ export function UnitFilter({
         <select
           value={projectAktif}
           onChange={(e) => terapkan({ project: e.target.value })}
-          className="max-w-xs rounded-input border border-line bg-surface-elevated px-3 py-2 outline-none focus:border-brand"
+          className="max-w-xs rounded-input border border-line bg-surface-elevated px-3 py-2"
         >
           <option value="">Semua project</option>
           {projectList.map((p) => <option key={p} value={p}>{p}</option>)}

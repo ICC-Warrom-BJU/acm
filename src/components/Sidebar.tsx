@@ -46,7 +46,7 @@ export function Sidebar({ role, ciut = false }: { role: string; ciut?: boolean }
         {!ciut && <p className="text-xs text-content-secondary">Alert Centre</p>}
       </div>
 
-      <nav className="flex flex-col gap-1">
+      <nav aria-label="Navigasi utama" className="flex flex-col gap-1">
         {items.map((i) => {
           const aktif = i.href === '/' ? path === '/' : path.startsWith(i.href);
           return (
@@ -54,6 +54,10 @@ export function Sidebar({ role, ciut = false }: { role: string; ciut?: boolean }
               key={i.href}
               href={i.href}
               title={ciut ? i.label : undefined}
+              // Saat ciut hanya ikon yang terlihat, jadi nama aksesibelnya
+              // harus disediakan eksplisit (UX §1 aria-labels).
+              aria-label={ciut ? i.label : undefined}
+              aria-current={aktif ? 'page' : undefined}
               className={`relative flex items-center gap-3 rounded-btn px-3 py-2.5 transition-colors ${
                 aktif
                   ? 'bg-brand-soft font-medium text-content-primary'
@@ -62,9 +66,12 @@ export function Sidebar({ role, ciut = false }: { role: string; ciut?: boolean }
             >
               {/* Indikator garis kiri hijau solid untuk item aktif (UIUX §9). */}
               {aktif && (
-                <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-full bg-brand" />
+                <span
+                  aria-hidden
+                  className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-full bg-brand"
+                />
               )}
-              <span className="shrink-0">{i.ikon}</span>
+              <span aria-hidden className="shrink-0">{i.ikon}</span>
               {!ciut && <span className="truncate text-sm">{i.label}</span>}
             </Link>
           );

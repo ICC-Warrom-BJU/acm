@@ -95,10 +95,10 @@ export function TampilanMatrix({
   return (
     <div>
       {error && (
-        <p className="mb-4 rounded-input bg-severity-critical px-4 py-3 text-sm text-white">{error}</p>
+        <p role="alert" className="mb-4 rounded-input bg-severity-critical px-4 py-3 text-sm text-white">{error}</p>
       )}
       {hasil && (
-        <p className="mb-4 rounded-input border-l-4 border-l-severity-info bg-surface-elevated px-4 py-3 text-sm">
+        <p role="status" className="mb-4 rounded-input border-l-4 border-l-severity-info bg-surface-elevated px-4 py-3 text-sm">
           {hasil}
         </p>
       )}

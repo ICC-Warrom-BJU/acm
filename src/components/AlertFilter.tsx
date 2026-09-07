@@ -77,7 +77,7 @@ function Pilih({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-input border border-line bg-surface-elevated px-3 py-2 text-sm outline-none focus:border-brand"
+        className="rounded-input border border-line bg-surface-elevated px-3 py-2 text-sm"
       >
         {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>
@@ -93,7 +93,7 @@ function Tanggal({ label, value, onChange }: { label: string; value: string; onC
         type="date"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-input border border-line bg-surface-elevated px-3 py-2 text-sm outline-none focus:border-brand"
+        className="rounded-input border border-line bg-surface-elevated px-3 py-2 text-sm"
       />
     </div>
   );

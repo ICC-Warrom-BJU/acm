@@ -223,7 +223,7 @@ export function Dashboard({
               <select
                 value={cabang}
                 onChange={(e) => setCabang(e.target.value)}
-                className="rounded-input border border-line bg-surface-elevated px-3 py-1.5 text-sm outline-none focus:border-brand"
+                className="rounded-input border border-line bg-surface-elevated px-3 py-1.5 text-sm"
               >
                 <option value="">Semua cabang</option>
                 {daftarCabang.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -272,10 +272,28 @@ export function Dashboard({
           <EventChart alerts={terfilter} wall={wall} />
 
           {loading ? (
-            <div className="rounded-card bg-surface-elevated p-6 text-content-secondary">Memuat…</div>
+            /* Kerangka, bukan teks "Memuat…": ia menahan ruang sebesar isi yang
+               akan datang, sehingga tata letak tidak melompat saat data tiba
+               (UX §3 content-jumping). */
+            <div className="grid gap-4 md:grid-cols-2" aria-busy="true" aria-live="polite">
+              <span className="sr-only">Memuat alert…</span>
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="space-y-2">
+                  <div className="skeleton h-4 w-32" />
+                  <div className="skeleton h-14 w-full" />
+                  <div className="skeleton h-14 w-full" />
+                </div>
+              ))}
+            </div>
           ) : lajur.length === 0 ? (
-            <div className="rounded-card bg-surface-elevated p-6 text-content-secondary">
-              Belum ada alert aktif.
+            /* Empty state yang menjelaskan, bukan layar kosong (UX §8). */
+            <div className="rounded-card bg-surface-elevated p-8">
+              <p className="font-medium">Tidak ada alert aktif</p>
+              <p className="mt-1 max-w-md text-sm text-content-secondary">
+                {disembunyikan > 0
+                  ? `${disembunyikan} alert disembunyikan oleh Konfigurasi Tampilan. Datanya tetap tersimpan.`
+                  : 'Semua unit dalam kondisi normal, atau alert yang masuk sudah ditutup di halaman Antrian.'}
+              </p>
             </div>
           ) : (
             // Satu lajur per jenis alert, bukan satu daftar panjang bercampur:

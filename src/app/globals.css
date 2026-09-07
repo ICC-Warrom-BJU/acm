@@ -76,3 +76,78 @@ body {
 .wall-safe {
   padding: 2.5vh 2.5vw;
 }
+
+/* ---------------------------------------------------------------
+   Fokus keyboard (UX §1 focus-states)
+   ---------------------------------------------------------------
+   Sebelumnya setiap input mematikan outline bawaan dengan pengganti hanya
+   perubahan warna border — tidak cukup: border tipis 1px sulit terlihat, dan
+   pengguna keyboard kehilangan jejak posisi. Ring dipasang sekali di sini
+   supaya berlaku ke seluruh elemen interaktif tanpa perlu diulang.
+
+   :focus-visible, bukan :focus — supaya ring tidak muncul saat elemen diklik
+   mouse, hanya saat dijelajahi keyboard.
+--------------------------------------------------------------- */
+:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Kontras ring di mode gelap perlu dinaikkan — hijau tua di atas latar hampir
+   hitam nyaris tidak terbaca. */
+.dark :focus-visible {
+  outline-color: #2ee5a8;
+}
+
+/* ---------------------------------------------------------------
+   prefers-reduced-motion (UX §1 reduced-motion)
+   ---------------------------------------------------------------
+   Sebelumnya hanya animasi masuk alert yang dihormati. Aturan ini menutup
+   seluruh transisi sekaligus — penting untuk layar yang menyala berjam-jam
+   dan bagi operator yang sensitif terhadap gerak.
+--------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@layer components {
+  /* Input, select, dan textarea dengan gaya seragam.
+     Tinggi minimal 40px (36px + border) supaya nyaman disentuh. */
+  .field {
+    @apply w-full rounded-input border border-line bg-surface-elevated px-3 py-2.5
+           text-content-primary transition-colors;
+  }
+  .field:hover:not(:disabled) {
+    border-color: var(--brand-primary);
+  }
+  .field:disabled {
+    /* Disabled harus terlihat jelas TIDAK bisa dipakai (UX §8 disabled-states). */
+    @apply cursor-not-allowed opacity-50;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-btn font-medium
+           transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-brand text-white hover:bg-brand-hover;
+  }
+  .btn-ghost {
+    @apply btn border border-line text-content-secondary
+           hover:border-brand hover:text-content-primary;
+  }
+
+  /* Kerangka pemuatan. Lebih baik daripada teks "Memuat…" karena ia menahan
+     ruang, sehingga tata letak tidak melompat saat data tiba (UX §3 CLS). */
+  .skeleton {
+    @apply animate-pulse rounded-alert bg-surface-elevated;
+  }
+}

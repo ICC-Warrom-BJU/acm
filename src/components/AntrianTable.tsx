@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatClock, BUSINESS_TZ_LABEL } from '@/lib/time';
 import { AlertDetail } from './AlertDetail';
+import { Modal } from './Modal';
 
 export interface AlertRow {
   id: string;
@@ -96,10 +97,10 @@ export function AntrianTable({
   return (
     <div>
       {error && (
-        <p className="mb-4 rounded-input bg-severity-critical px-4 py-3 text-sm text-white">{error}</p>
+        <p role="alert" className="mb-4 rounded-input bg-severity-critical px-4 py-3 text-sm text-white">{error}</p>
       )}
       {hasil && (
-        <p className="mb-4 rounded-input border-l-4 border-l-severity-info bg-surface-elevated px-4 py-3 text-sm">
+        <p role="status" className="mb-4 rounded-input border-l-4 border-l-severity-info bg-surface-elevated px-4 py-3 text-sm">
           {hasil}
         </p>
       )}
@@ -210,11 +211,15 @@ export function AntrianTable({
       {detail && <AlertDetail alertId={detail} onClose={() => setDetail(null)} />}
 
       {modal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="glass w-full max-w-lg rounded-card p-6">
-            <h2 className="text-xl font-medium">
+        <Modal
+          judul={modal.mode === 'filter' ? 'Tutup semua alert sesuai filter' : 'Tutup alert terpilih'}
+          onClose={() => setModal(null)}
+          lebar="max-w-lg"
+        >
+          <>
+            <p className="text-xl font-medium">
               {modal.mode === 'filter' ? 'Tutup semua sesuai filter' : 'Tutup alert terpilih'}
-            </h2>
+            </p>
 
             {modal.mode === 'filter' ? (
               <div className="mt-3 rounded-input border-l-4 border-l-severity-warning bg-surface-elevated p-3 text-sm">
@@ -233,14 +238,15 @@ export function AntrianTable({
               </p>
             )}
 
-            <label className="mt-4 block text-sm text-content-secondary">
+            <label htmlFor="catatan-tutup" className="mt-4 block text-sm text-content-secondary">
               Catatan penutupan (opsional)
             </label>
             <input
+              id="catatan-tutup"
               value={catatan}
               onChange={(e) => setCatatan(e.target.value)}
               placeholder="mis. sudah dikonfirmasi ke driver"
-              className="mt-1 w-full rounded-input border border-line bg-surface-elevated px-3 py-2 outline-none focus:border-brand"
+              className="field mt-1"
             />
 
             <div className="mt-6 flex flex-wrap justify-end gap-2">
@@ -260,13 +266,13 @@ export function AntrianTable({
               <button
                 onClick={() => jalankan('close')}
                 disabled={busy}
-                className="rounded-btn bg-brand px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-hover disabled:opacity-60"
+                className="btn-primary px-4 py-2 text-sm"
               >
                 {busy ? 'Memproses…' : 'Tutup alert'}
               </button>
             </div>
-          </div>
-        </div>
+          </>
+        </Modal>
       )}
     </div>
   );

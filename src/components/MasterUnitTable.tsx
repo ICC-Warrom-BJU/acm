@@ -70,7 +70,7 @@ export function MasterUnitTable({
   return (
     <div>
       {error && (
-        <p className="mb-4 rounded-input bg-severity-critical px-4 py-3 text-sm text-white">
+        <p role="alert" className="mb-4 rounded-input bg-severity-critical px-4 py-3 text-sm text-white">
           {error}
         </p>
       )}
@@ -195,7 +195,7 @@ function Inp({ v, on, wide }: { v: any; on: (x: string) => void; wide?: boolean 
     <input
       value={v ?? ''}
       onChange={(e) => on(e.target.value)}
-      className={`rounded-input border border-line bg-surface-base px-2 py-1 outline-none focus:border-brand ${wide ? 'w-56' : 'w-32'}`}
+      className={`rounded-input border border-line bg-surface-base px-2 py-1 ${wide ? 'w-56' : 'w-32'}`}
     />
   );
 }

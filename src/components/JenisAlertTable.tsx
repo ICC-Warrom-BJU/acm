@@ -86,7 +86,7 @@ export function JenisAlertTable({ rows }: { rows: JenisAlert[] }) {
   return (
     <div>
       {error && (
-        <p className="mb-4 rounded-input bg-severity-critical px-4 py-3 text-sm text-white">
+        <p role="alert" className="mb-4 rounded-input bg-severity-critical px-4 py-3 text-sm text-white">
           {error}
         </p>
       )}
@@ -141,7 +141,7 @@ export function JenisAlertTable({ rows }: { rows: JenisAlert[] }) {
                           value={draft.alert_type ?? ''}
                           onChange={(e) => setDraft({ ...draft, alert_type: e.target.value })}
                           placeholder="mis. fatigue_driving"
-                          className="w-44 rounded-input border border-line bg-surface-base px-2 py-1 font-mono outline-none focus:border-brand"
+                          className="w-44 rounded-input border border-line bg-surface-base px-2 py-1 font-mono"
                         />
                       ) : (
                         <span className={r.alert_type ? 'font-mono' : 'text-content-secondary'}>
@@ -155,7 +155,7 @@ export function JenisAlertTable({ rows }: { rows: JenisAlert[] }) {
                         <input
                           value={draft.label ?? ''}
                           onChange={(e) => setDraft({ ...draft, label: e.target.value })}
-                          className="w-40 rounded-input border border-line bg-surface-base px-2 py-1 outline-none focus:border-brand"
+                          className="w-40 rounded-input border border-line bg-surface-base px-2 py-1"
                         />
                       ) : (
                         r.label ?? '—'
@@ -167,7 +167,7 @@ export function JenisAlertTable({ rows }: { rows: JenisAlert[] }) {
                         <select
                           value={draft.severity ?? ''}
                           onChange={(e) => setDraft({ ...draft, severity: e.target.value })}
-                          className="rounded-input border border-line bg-surface-base px-2 py-1 outline-none focus:border-brand"
+                          className="rounded-input border border-line bg-surface-base px-2 py-1"
                         >
                           <option value="">(turunkan otomatis)</option>
                           <option value="critical">critical</option>
@@ -245,7 +245,7 @@ export function JenisAlertTable({ rows }: { rows: JenisAlert[] }) {
                           value={draft.notes ?? ''}
                           onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
                           placeholder="Alasan keputusan, mis. kenapa jenis ini dinonaktifkan"
-                          className="w-full rounded-input border border-line bg-surface-base px-2 py-1.5 outline-none focus:border-brand"
+                          className="w-full rounded-input border border-line bg-surface-base px-2 py-1.5"
                         />
                       </td>
                     </tr>
