@@ -119,6 +119,8 @@ Nilai `tipe_notif` yang benar-benar muncul (sampel 1 hari, 465 record):
 | `MOVEMENT` | 4 |
 | `OVERSPEED_IN_GEO` | 2 |
 
+Sampel satu hari itu **tidak lengkap**. Window 10 jam pada 2026-09-07 memunculkan satu jenis lagi yang tidak ada di daftar ini: `FATIQUE` (lihat §6.1). Pelajarannya: daftar jenis dari sampel apa pun harus diperlakukan sebagai sementara — itulah sebabnya penemuan otomatis dibangun, bukan daftar tetap di kode.
+
 Perhatikan: penulisannya **tidak konsisten** (ada UPPERCASE, ada Title Case) — pencocokan harus case-insensitive.
 
 ### 6.1 Ketidakcocokan dengan Dokumen — PERLU KEPUTUSAN
@@ -131,7 +133,35 @@ Dokumen menargetkan tiga jenis: Parking Overtime, Idle Overtime, **Fatigue Drivi
 | `parking_overtime` | `Forbidden Parking` | Sedang — "Forbidden" (parkir di area terlarang) belum tentu sama dengan "Overtime" (parkir kelamaan). Tapi `ket_notif` berbunyi `"Forbidden Parking >= 2h, 3m"`, yang berbasis durasi — jadi kemungkinan besar memang ini |
 | `fatigue_driving` | `Forbidden Driving` | **Rendah** — `ket_notif` berbunyi `"Forbidden Driving >= 1h, 7m"`. Tidak ada jenis notifikasi yang secara eksplisit bernama fatigue |
 
-**Tidak ada `tipe_notif` yang berarti "fatigue driving".** Ini masih perlu dikonfirmasi ke pemilik TMS EASYGO.
+### TERPECAHKAN 2026-09-07 — jenisnya bernama `FATIQUE`
+
+Sampel awal satu hari tidak memuatnya sama sekali, sehingga sempat disimpulkan tidak ada. Jenis itu **ada**, dieja `FATIQUE` (bukan `FATIGUE`), dan muncul jauh lebih jarang daripada jenis lain — 1 kejadian dalam window 10 jam, dibanding 103 untuk `Forbidden Driving`.
+
+Ia ditemukan **tanpa ada yang menebaknya**, oleh mekanisme penemuan otomatis di §6.1: poller mencatat setiap nilai `tipe_notif` yang belum dikenal sebagai baris nonaktif beserta contoh payloadnya.
+
+Contoh payload memastikan maknanya:
+
+```json
+{
+  "tipe_notif": "FATIQUE",
+  "ket_notif": "FATIQUE",
+  "durasi_moving": "4h",
+  "direction": "START",
+  "vehicle_id": "VEH0162537",
+  "nopol": "buffer DD 8483 UD"
+}
+```
+
+`durasi_moving: "4h"` — mengemudi empat jam menerus. Ini memang kelelahan pengemudi.
+
+**Konsekuensinya, dugaan awal di tabel atas keliru:** `Forbidden Driving` **bukan** padanan fatigue driving. Keduanya jenis yang berbeda dan kini dipetakan terpisah:
+
+| `tipe_notif` | alert_type ACM | Severity |
+|---|---|---|
+| `FATIQUE` | `fatigue_driving` | critical |
+| `Forbidden Driving` | `forbidden_driving` | critical |
+
+Ini juga membenarkan keputusan memindahkan pemetaan ke master data: penyesuaian dilakukan lewat satu baris di UI, tanpa perubahan kode dan tanpa deploy ulang.
 
 > **KEPUTUSAN (BJU):** pemetaan jenis notifikasi dipindahkan ke master data `alert_type_master`, bukan lagi konstanta di kode atau JSON di konfigurasi sumber. Begitu jenis mana yang mewakili fatigue driving diketahui, staf cukup mengubah `alert_type` pada baris itu lewat UI. Lebih jauh, poller mencatat sendiri setiap nilai `tipe_notif` baru yang muncul sebagai baris nonaktif — jadi kalau EASYGO menambahkan jenis fatigue nanti, ia akan muncul otomatis untuk ditinjau tanpa ada yang perlu menebak namanya lebih dulu.
 
@@ -165,7 +195,7 @@ Kalau kedua sumber diaktifkan apa adanya, satu kejadian ngebut yang sama berpote
 
 | # | Hal | Status |
 |---|---|---|
-| 1 | Pemetaan `fatigue_driving` (§6.1) | **Tertangani lewat desain.** Pemetaan jadi master data + penemuan otomatis, jadi tidak lagi memblokir. Nama jenis yang benar masih perlu dikonfirmasi ke EASYGO, tapi tanpa perubahan kode |
+| 1 | Pemetaan `fatigue_driving` (§6.1) | **Selesai.** Jenisnya bernama `FATIQUE`, ditemukan otomatis oleh poller pada 2026-09-07 dan dikonfirmasi lewat contoh payload (`durasi_moving: "4h"`). Sudah dipetakan dan aktif |
 | 2 | Tumpang tindih OVERSPEED (§6.2) | **Diputuskan.** Speed Flag jadi satu-satunya sumber overspeed |
 | 3 | Zona waktu window request per endpoint (§3.1) | **Diperbaiki.** `time_window_offset_hours` per sumber, tanpa nilai default tersembunyi di kode |
 | 4 | Zona waktu bisnis (batas hari & tampilan) | **Diputuskan: WITA (+8)**, mengikuti lokasi control room di Makassar. Lihat `src/lib/time.ts` |

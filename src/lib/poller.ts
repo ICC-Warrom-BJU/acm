@@ -8,6 +8,7 @@ import {
   formatEasygoTime,
   deriveSeverity,
 } from './normalize';
+import { businessDate } from './time';
 
 /**
  * Satu siklus polling untuk satu sumber alert (PRD §5.2 langkah 3).
@@ -399,7 +400,11 @@ async function upsertAlerts(db: any, rows: AlertRow[]) {
       occurrence_count: 1,
     };
 
-    const day = enriched.first_seen_at.slice(0, 10);
+    // Kunci penggabungan HARUS memakai tanggal bisnis (WITA), sama persis
+    // dengan kolom generated occurrence_date di database. Memakai tanggal UTC
+    // di sini membuat dua kejadian yang menurut database satu baris terkirim
+    // sebagai dua, dan ON CONFLICT menolak seluruh perintah.
+    const day = businessDate(enriched.first_seen_at);
     const key = `${enriched.vhcid ?? ''}|${enriched.alert_type}|${day}`;
     const prev = merged.get(key);
 

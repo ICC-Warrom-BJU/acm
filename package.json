@@ -15,7 +15,8 @@
     "verify:api": "node --env-file=.env.local scripts/verify-pipeline.mjs",
     "verify:realtime": "node --env-file=.env.local scripts/verify-realtime.mjs",
     "set:baseurl": "node --env-file=.env.local scripts/set-base-url.mjs",
-    "verify:cron": "node --env-file=.env.local scripts/verify-cron.mjs"
+    "verify:cron": "node --env-file=.env.local scripts/verify-cron.mjs",
+    "verify:split": "node --import ./scripts/ts-resolve.mjs --env-file=.env.local scripts/verify-split.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

@@ -48,9 +48,9 @@ Urutan di bawah disusun supaya **Speed Flag jadi vertical slice pertama yang jal
 
 ## Milestone 3 — Tambah 3 API Berbagi Endpoint (Parking/Idle/Fatigue)
 
-- [ ] Implementasikan mekanisme pemecahan response satu endpoint menjadi 3 alert_type (berdasarkan keputusan Milestone 0)
-- [ ] Insert konfigurasi untuk Parking Overtime, Idle Overtime, Fatigue Driving
-- [ ] Verifikasi ketiga jenis alert muncul benar di dashboard dengan alert_type yang sesuai, tanpa duplikasi pemanggilan endpoint
+- [x] Mekanisme pemecahan satu endpoint jadi banyak alert_type — lewat `discriminator_path` + master data `alert_type_master`
+- [x] Konfigurasi Parking Overtime, Idle Overtime, Fatigue Driving — plus Forbidden Driving. `fatigue_driving` ternyata dieja `FATIQUE` di API dan ditemukan otomatis oleh poller (FINDINGS §6.1)
+- [x] Verifikasi lewat `npm run verify:split`: SATU panggilan endpoint (605 record) menghasilkan 4 alert_type sekaligus — fatigue_driving, forbidden_driving, idle_overtime, parking_overtime — tanpa jenis nonaktif yang bocor
 
 ## Milestone 4 — Modul Lanjutan
 
