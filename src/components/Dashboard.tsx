@@ -69,13 +69,16 @@ export function Dashboard({
           {/* Modul konfigurasi tidak ditampilkan sama sekali untuk Management —
               mereka memang tidak punya akses (PRD §4), jadi menampilkan tautan
               yang pasti ditolak hanya membingungkan. */}
-          {isStaff && (
-            <nav className="flex gap-1 text-sm">
-              <NavLink href="/kesehatan">Kesehatan API</NavLink>
-              <NavLink href="/sumber">Sumber</NavLink>
-              <NavLink href="/jenis-alert">Jenis Alert</NavLink>
-            </nav>
-          )}
+          <nav className="flex gap-1 text-sm">
+            <NavLink href="/master-unit">Master Unit</NavLink>
+            {isStaff && (
+              <>
+                <NavLink href="/kesehatan">Kesehatan API</NavLink>
+                <NavLink href="/sumber">Sumber</NavLink>
+                <NavLink href="/jenis-alert">Jenis Alert</NavLink>
+              </>
+            )}
+          </nav>
           <UserMenu name={name} role={role} />
         </div>
       </header>

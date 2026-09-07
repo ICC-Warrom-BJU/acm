@@ -21,12 +21,18 @@ export function PageShell({
   active: string;
   children: React.ReactNode;
 }) {
+  // Modul konfigurasi tidak ditampilkan sama sekali untuk Management — mereka
+  // memang tidak punya akses (PRD §4), dan menampilkan tautan yang pasti
+  // ditolak hanya membingungkan.
+  const staff = role === 'super_admin' || role === 'staff_it';
+
   const nav = [
-    { href: '/', label: 'Dashboard' },
-    { href: '/kesehatan', label: 'Kesehatan API' },
-    { href: '/sumber', label: 'Sumber' },
-    { href: '/jenis-alert', label: 'Jenis Alert' },
-  ];
+    { href: '/', label: 'Dashboard', staffOnly: false },
+    { href: '/master-unit', label: 'Master Unit', staffOnly: false },
+    { href: '/kesehatan', label: 'Kesehatan API', staffOnly: true },
+    { href: '/sumber', label: 'Sumber', staffOnly: true },
+    { href: '/jenis-alert', label: 'Jenis Alert', staffOnly: true },
+  ].filter((n) => staff || !n.staffOnly);
 
   return (
     <div className="min-h-screen bg-surface-base p-4 md:p-6">
