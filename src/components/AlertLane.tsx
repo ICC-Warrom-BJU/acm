@@ -30,14 +30,14 @@ export function AlertLane({
   const kejadian = alerts.reduce((n, a) => n + a.occurrence_count, 0);
 
   const s = wall
-    ? { judul: 'text-2xl', angka: 'text-2xl', meta: 'text-base' }
-    : { judul: 'text-base', angka: 'text-lg', meta: 'text-xs' };
+    ? { judul: 'text-2xl', angka: 'text-2xl', meta: 'text-base', jarak: 'space-y-2' }
+    : { judul: 'text-sm', angka: 'text-base', meta: 'text-[11px]', jarak: 'space-y-1.5' };
 
   return (
     <section className="flex min-h-0 flex-col rounded-card bg-surface-base">
       {/* Judul lajur menempel di atas saat digulir, supaya operator tidak
           kehilangan konteks jenis alert saat menyusuri daftar panjang. */}
-      <header className="sticky top-0 z-10 flex items-baseline justify-between gap-2 rounded-t-card bg-surface-base px-1 pb-2">
+      <header className="sticky top-0 z-10 flex items-baseline justify-between gap-2 rounded-t-card bg-surface-base px-1 pb-1.5">
         <h3 className={`truncate font-medium ${s.judul}`}>{labelJenis(jenis)}</h3>
         <div className={`flex shrink-0 items-baseline gap-2 ${s.meta}`}>
           {kritis > 0 && (
@@ -50,9 +50,9 @@ export function AlertLane({
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+      <div className={`min-h-0 flex-1 overflow-y-auto pr-1 ${s.jarak}`}>
         {alerts.length === 0 ? (
-          <p className={`px-1 py-4 text-content-secondary ${s.meta}`}>Tidak ada alert aktif.</p>
+          <p className={`px-1 py-3 text-content-secondary ${s.meta}`}>Tidak ada alert aktif.</p>
         ) : (
           alerts.map((a) => <AlertCard key={a.id} a={a} wall={wall} onDetail={onDetail} />)
         )}
