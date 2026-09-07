@@ -18,12 +18,15 @@ export function TampilanMatrix({
   jenisList,
   konfigAwal,
   kejadian,
+  terbuka,
 }: {
   cabangList: string[];
   jenisList: string[];
   konfigAwal: KonfigCabang[];
-  /** Kejadian 30 hari terakhir, kunci "cabang|jenis". */
+  /** Kejadian 30 hari terakhir (termasuk yang sudah ditutup), kunci "cabang|jenis". */
   kejadian: Record<string, number>;
+  /** Alert yang masih terbuka sekarang — inilah yang tampil di dashboard. */
+  terbuka: Record<string, number>;
 }) {
   const router = useRouter();
 
@@ -100,8 +103,8 @@ export function TampilanMatrix({
   // benar-benar terjadi, bukan sekadar merapikan jenis yang tidak relevan.
   const dimatikanPadahalAda = cabangList.flatMap((c) =>
     jenisList
-      .filter((j) => !tampil(c, j) && (kejadian[`${c}|${j}`] ?? 0) > 0)
-      .map((j) => `${c} / ${labelJenis(j)} (${kejadian[`${c}|${j}`]}×)`),
+      .filter((j) => !tampil(c, j) && (terbuka[`${c}|${j}`] ?? 0) > 0)
+      .map((j) => `${c} / ${labelJenis(j)} (${terbuka[`${c}|${j}`]} terbuka)`),
   );
 
   return (
@@ -169,6 +172,7 @@ export function TampilanMatrix({
 
                 {jenisList.map((j) => {
                   const n = kejadian[`${c}|${j}`] ?? 0;
+                  const buka = terbuka[`${c}|${j}`] ?? 0;
                   return (
                     <td key={j} className="px-3 py-2.5 text-center">
                       <label className="inline-flex cursor-pointer flex-col items-center gap-0.5">
@@ -178,20 +182,34 @@ export function TampilanMatrix({
                           onChange={() => toggle(c, j)}
                           aria-label={
                             n > 0
-                              ? `${labelJenis(j)} di cabang ${c}, ${n} kejadian dalam 30 hari`
+                              ? `${labelJenis(j)} di cabang ${c}: ${buka} terbuka, ${n} kejadian dalam 30 hari`
                               : `${labelJenis(j)} di cabang ${c}, belum pernah terjadi`
                           }
                           className="h-4 w-4 cursor-pointer accent-[var(--brand-primary)]"
                         />
-                        {/* Angka kejadian nyata, bukan sekadar kotak kosong.
-                            Yang nol diredupkan supaya jelas mencentangnya tidak
-                            mengubah apa pun hari ini. */}
+                        {/* Dua angka: yang TERBUKA sekarang (tebal, itulah yang
+                            tampil di dashboard) dan total kejadian 30 hari
+                            termasuk yang sudah ditutup (redup). Tanpa dipisah,
+                            jenis yang sudah selesai ditangani tampak seperti
+                            "ada tapi hilang dari dashboard". */}
                         <span
-                          className={`font-mono text-[10px] ${
-                            n > 0 ? 'text-content-secondary' : 'text-content-secondary/40'
-                          }`}
+                          className="font-mono text-[10px] leading-none"
+                          title={
+                            n > 0
+                              ? `${buka} belum tertutup · ${n} kejadian dalam 30 hari (termasuk yang sudah ditutup)`
+                              : 'Belum pernah terjadi dalam 30 hari terakhir'
+                          }
                         >
-                          {n > 0 ? n.toLocaleString('id-ID') : '—'}
+                          {n > 0 ? (
+                            <>
+                              <span className={buka > 0 ? 'text-content-primary' : 'text-content-secondary/50'}>
+                                {buka}
+                              </span>
+                              <span className="text-content-secondary/50">/{n.toLocaleString('id-ID')}</span>
+                            </>
+                          ) : (
+                            <span className="text-content-secondary/40">—</span>
+                          )}
                         </span>
                       </label>
                     </td>

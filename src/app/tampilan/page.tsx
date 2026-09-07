@@ -51,6 +51,28 @@ export default async function TampilanPage() {
     kejadian[k] = (kejadian[k] ?? 0) + (r.occurrence_count ?? 0);
   }
 
+  /*
+    Berapa yang MASIH TERBUKA sekarang — angka yang dilihat dashboard.
+
+    Dua angka ini harus ditampilkan berdampingan. Tanpa itu, matriks yang
+    menghitung seluruh riwayat (termasuk yang sudah ditutup) tampak
+    bertentangan dengan dashboard yang hanya menghitung yang belum tertutup:
+    sebuah jenis bisa menunjukkan 30 kejadian di sini tapi tidak muncul sama
+    sekali di dashboard, semata karena semuanya sudah ditangani.
+  */
+  const { data: terbukaRows } = await supabase
+    .from('alerts')
+    .select('cabang, alert_type')
+    .neq('status', 'closed')
+    .not('cabang', 'is', null)
+    .limit(20000);
+
+  const terbuka: Record<string, number> = {};
+  for (const r of terbukaRows ?? []) {
+    const k = `${r.cabang}|${r.alert_type}`;
+    terbuka[k] = (terbuka[k] ?? 0) + 1;
+  }
+
   // Jenis alert dikumpulkan dari master data DAN dari sumber yang berdiri
   // sendiri (speed_flag tidak punya baris master karena bukan dari endpoint
   // berbagi), supaya tidak ada jenis yang luput dari matriks.
@@ -91,6 +113,14 @@ export default async function TampilanPage() {
           bisa dibatalkan kapan saja.
         </p>
         <p className="mt-3 max-w-3xl text-sm text-content-secondary">
+          Angka di bawah tiap kotak berbentuk <span className="font-mono">terbuka/total</span>:
+          berapa alert yang <strong>belum tertutup</strong> saat ini (itulah yang
+          tampil di dashboard), dan berapa total kejadian 30 hari terakhir
+          termasuk yang sudah ditutup. Jenis yang menunjukkan{' '}
+          <span className="font-mono">0/30</span> berarti pernah terjadi tapi
+          semuanya sudah ditangani — bukan disembunyikan.
+        </p>
+        <p className="mt-3 max-w-3xl text-sm text-content-secondary">
           Cabang yang belum pernah diatur menampilkan semua jenis. Alert dari
           unit yang belum terdaftar di master data selalu tampil, karena
           cabangnya belum diketahui dan justru itu yang perlu ketahuan.
@@ -115,6 +145,7 @@ export default async function TampilanPage() {
           jenisList={jenisList}
           konfigAwal={(konfig ?? []) as KonfigCabang[]}
           kejadian={kejadian}
+          terbuka={terbuka}
         />
       )}
     </PageShell>
