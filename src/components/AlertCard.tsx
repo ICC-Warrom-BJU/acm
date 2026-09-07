@@ -1,7 +1,7 @@
 'use client';
 
 import { formatClock } from '@/lib/time';
-import { SEVERITY_BADGE, SEVERITY_BORDER, kecepatan, type Alert } from '@/lib/alert';
+import { SEVERITY_BADGE, SEVERITY_BORDER, kecepatan, durasiPelanggaran, type Alert } from '@/lib/alert';
 
 /**
  * Kartu satu alert di feed (UIUX §9 "Item Feed Alert").
@@ -53,7 +53,14 @@ export function AlertCard({
         tombol: 'text-[10px] px-1.5 py-0',
       };
 
+  /*
+    Satu slot "ukuran pelanggaran" yang isinya menyesuaikan jenis alert:
+    kecepatan untuk speed_flag, durasi untuk idle/parking/forbidden driving.
+    Diletakkan di posisi yang sama supaya mata operator selalu menemukan angka
+    terpenting di tempat yang sama, apa pun jenis alertnya.
+  */
   const kmh = kecepatan(a);
+  const lama = kmh == null ? durasiPelanggaran(a) : null;
 
   // Keterangan sekunder digabung supaya tidak memakan satu baris masing-masing.
   const keterangan = [
@@ -85,6 +92,12 @@ export function AlertCard({
             <span className={`font-mono font-medium text-severity-critical ${s.speed}`}>
               {kmh}
               <span className={wall ? s.meta : 'text-[10px]'}> km/j</span>
+            </span>
+          )}
+
+          {lama != null && (
+            <span className={`whitespace-nowrap font-mono font-medium text-severity-critical ${s.speed}`}>
+              {lama}
             </span>
           )}
 

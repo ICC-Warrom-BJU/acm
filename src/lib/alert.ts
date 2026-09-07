@@ -25,11 +25,25 @@ export interface Alert {
    * membawa raw_payload utuh, jadi keduanya perlu dibaca (lihat kecepatan()).
    */
   speed?: number | string | null;
-  raw_payload?: { speed?: number | string | null } | null;
+
+  /**
+   * Keterangan kejadian dari API, mis. "IDLE >= 1h, 2m".
+   *
+   * Untuk jenis selain speed_flag, durasi pelanggaran HANYA ada di dalam teks
+   * ini — API tidak menyediakannya sebagai angka. `durasi_stop` dan
+   * `durasi_moving` justru selalu null pada record IDLE (diperiksa langsung
+   * pada 2026-09-07), jadi mengurai teks ini satu-satunya jalan.
+   */
+  ket?: string | null;
+
+  raw_payload?: {
+    speed?: number | string | null;
+    ket_notif?: string | null;
+  } | null;
 }
 
 export const KOLOM_ALERT =
-  'id, vhcid, alert_type, severity, no_plat, cabang, group_project, occurrence_count, last_seen_at, status, speed:raw_payload->speed';
+  'id, vhcid, alert_type, severity, no_plat, cabang, group_project, occurrence_count, last_seen_at, status, speed:raw_payload->speed, ket:raw_payload->>ket_notif';
 
 /** Warna severity — sama di mode terang maupun gelap (UIUX §2.3). */
 export const SEVERITY_BADGE: Record<string, string> = {
@@ -50,6 +64,41 @@ export function kecepatan(a: Alert): number | null {
   if (v == null || v === '') return null;
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/**
+ * Durasi pelanggaran, diurai dari `ket_notif`.
+ *
+ *   "IDLE >= 1h"                    -> "≥ 1j"
+ *   "IDLE >= 1h, 2m"                -> "≥ 1j 2m"
+ *   "Forbidden Parking >= 2h, 3m"   -> "≥ 2j 3m"
+ *
+ * Sengaja hanya membaca bagian SETELAH ">=". Tanpa penjangkaran itu, pola angka
+ * akan salah menangkap kasus lain: "OVERSPEED max 49 · 1m, 20s" akan terbaca
+ * sebagai durasi 1 menit, dan "MOVEMENT 32 km/h | 4h" sebagai 4 jam — padahal
+ * angka pertamanya kecepatan, bukan durasi.
+ *
+ * Gagal-aman: kalau polanya tidak dikenali tapi ">=" tetap ada, teks setelahnya
+ * ditampilkan apa adanya. Kalau ">=" tidak ada sama sekali (mis. "FATIQUE"),
+ * hasilnya null dan tidak ada yang dirender — lebih baik kosong daripada
+ * mengulang nama jenis yang sudah tertulis di kepala lajur.
+ *
+ * Ini pengurai berbasis teks, jadi rapuh terhadap perubahan format di sisi
+ * EASYGO. Itu risiko yang disadari: API tidak menyediakan alternatif numerik.
+ */
+export function durasiPelanggaran(a: Alert): string | null {
+  const teks = a.ket ?? a.raw_payload?.ket_notif;
+  if (!teks) return null;
+
+  const cocok = String(teks).match(/>=\s*(.+)$/);
+  if (!cocok) return null;
+
+  const sisa = cocok[1].trim();
+  const bagian = [...sisa.matchAll(/(\d+)\s*([hms])/gi)];
+  if (bagian.length === 0) return sisa.slice(0, 16);
+
+  const satuan: Record<string, string> = { h: 'j', m: 'm', s: 'd' };
+  return '≥ ' + bagian.map((b) => b[1] + satuan[b[2].toLowerCase()]).join(' ');
 }
 
 /** Label jenis alert untuk manusia. */
