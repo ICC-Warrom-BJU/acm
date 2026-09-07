@@ -205,3 +205,41 @@ Kalau kedua sumber diaktifkan apa adanya, satu kejadian ngebut yang sama berpote
 ### Catatan konsekuensi zona waktu bisnis
 
 WITA (+8) dipilih supaya operator membaca jam yang sama dengan jam dinding di ruangan Makassar. Konsekuensinya: batas "hari" ACM bergeser satu jam dari batas hari TMS EASYGO yang memakai WIB. Rekap harian ACM karena itu bisa berbeda tipis dengan laporan TMS untuk kejadian di sekitar tengah malam. Ini konsekuensi yang disadari, bukan cacat — dan tercatat di `src/lib/time.ts` supaya tidak jadi kejutan saat ada yang merekonsiliasi angka.
+
+---
+
+## 9. Cakupan Unit — PERLU VERIFIKASI VHCID (belum ditindaklanjuti)
+
+**Ditemukan 2026-09-07** saat menelusuri kenapa cabang LJKT hanya memunculkan satu jenis alert.
+
+Dalam window 12 jam dengan total 5.046 record dari seluruh armada, **hanya 3 dari 18 unit LJKT yang muncul di API sama sekali** — di endpoint mana pun.
+
+Cakupan `company_nm` di `/api/Notifikasi/Operation` pada window yang sama:
+
+| company_nm | Record |
+|---|---|
+| PT. BUMI JASA UTAMA (TMS ENTERPRISE) | 380 |
+| PT. BUMI JASA UTAMA (LMKS) | 332 |
+| PT. BUMI JASA UTAMA VLI | 120 |
+| PT. BUMI JASA UTAMA (LBPP) | 79 |
+| PT. BUMI JASA UTAMA (CABO) | 32 |
+| PT. BUMI JASA UTAMA (LJKT) | **14** |
+
+### Dua kemungkinan, konsekuensinya berbeda
+
+1. **Wajar** — 15 unit itu memang tidak beroperasi (parkir, libur, atau nonaktif). Tidak ada perjalanan, jadi tidak ada pelanggaran.
+2. **Masalah** — GPS mati, tidak mengirim data, atau `vehicle_id` di master data BJU **berbeda** dari yang dipakai TMS EASYGO, sehingga unitnya tidak pernah tercocokkan.
+
+Data yang ada sekarang tidak bisa membedakan keduanya.
+
+### Kenapa ini tidak terdeteksi sendiri
+
+ACM memantau alert yang **masuk**. Unit yang diam total tidak menghasilkan apa pun, sehingga tidak muncul di mana pun — bukan di dashboard, bukan di Kesehatan API (yang memantau kesehatan *sumber*, bukan cakupan *unit*), dan bukan di laporan.
+
+Untuk armada yang dipantau, "unit tidak mengirim data sama sekali" sering justru lebih penting daripada pelanggaran biasa.
+
+### Tindak lanjut yang disepakati
+
+**Verifikasi VHCID lebih dulu** sebelum menyimpulkan apa pun: pastikan `vehicle_id` di `master_vehicles` benar-benar sama dengan yang dipakai TMS EASYGO. Kalau ada selisih penamaan, seluruh analisis cakupan di atas jadi tidak sahih.
+
+Sesudah itu baru layak dipertimbangkan: laporan cakupan unit per cabang (berapa unit yang tidak muncul di API selama N hari), sebagai modul tersendiri di luar lingkup Fase 1.

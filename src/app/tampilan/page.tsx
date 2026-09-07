@@ -3,6 +3,7 @@ import { getCurrentUser, isStaff, createServerSupabase } from '@/lib/supabase/se
 import { PageShell } from '@/components/PageShell';
 import { TampilanMatrix } from '@/components/TampilanMatrix';
 import type { KonfigCabang } from '@/lib/visibility';
+import { BUSINESS_TIMEZONE } from '@/lib/time';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +24,32 @@ export default async function TampilanPage() {
   ]);
 
   const cabangList = [...new Set((unit ?? []).map((u: any) => u.cabang))].sort() as string[];
+
+  /*
+    Kejadian nyata 30 hari terakhir per (cabang, jenis).
+
+    Tanpa angka ini, matriksnya cuma kotak centang kosong: orang yang mengatur
+    tidak punya cara tahu jenis mana yang benar-benar pernah terjadi di sebuah
+    cabang, dan bisa mematikan jenis yang justru satu-satunya aktif di sana.
+
+    Sumbernya alert_daily_summary — agregat permanen, jadi tetap mencerminkan
+    30 hari meski raw-nya sudah lewat masa retensi.
+  */
+  const sejak = new Date(Date.now() - 30 * 86_400_000)
+    .toLocaleDateString('en-CA', { timeZone: BUSINESS_TIMEZONE });
+
+  const { data: agregat } = await supabase
+    .from('alert_daily_summary')
+    .select('cabang, alert_type, occurrence_count')
+    .gte('summary_date', sejak)
+    .not('cabang', 'is', null)
+    .limit(20000);
+
+  const kejadian: Record<string, number> = {};
+  for (const r of agregat ?? []) {
+    const k = `${r.cabang}|${r.alert_type}`;
+    kejadian[k] = (kejadian[k] ?? 0) + (r.occurrence_count ?? 0);
+  }
 
   // Jenis alert dikumpulkan dari master data DAN dari sumber yang berdiri
   // sendiri (speed_flag tidak punya baris master karena bukan dari endpoint
@@ -87,6 +114,7 @@ export default async function TampilanPage() {
           cabangList={cabangList}
           jenisList={jenisList}
           konfigAwal={(konfig ?? []) as KonfigCabang[]}
+          kejadian={kejadian}
         />
       )}
     </PageShell>

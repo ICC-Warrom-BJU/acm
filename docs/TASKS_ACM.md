@@ -62,6 +62,11 @@ Urutan di bawah disusun supaya **Speed Flag jadi vertical slice pertama yang jal
 - [x] Import massal Master Data VHCID — `npm run import:vehicles`, pratinjau dulu sebelum `--commit`. 517 unit sudah terimpor
 - [x] Job pembersihan raw > 90 hari — `purge_old_data()` harian; agregat harian sengaja tidak ikut terhapus
 
+## Tindak Lanjut Terbuka (di luar milestone)
+
+- [ ] **Verifikasi VHCID terhadap TMS EASYGO** — pastikan `vehicle_id` di `master_vehicles` sama persis dengan yang dipakai API. Hanya 3 dari 18 unit LJKT muncul di API dalam 12 jam; belum bisa dipastikan apakah unitnya memang tidak beroperasi atau ID-nya tidak cocok. Lihat `FINDINGS_API_M0.md` §9
+- [ ] Setelah VHCID terverifikasi: pertimbangkan laporan cakupan unit per cabang (unit yang tidak mengirim data selama N hari)
+
 ## Milestone 5 — Kesiapan Rilis
 
 - [ ] Review keamanan: enkripsi token, RLS policy per role, HTTPS enforced

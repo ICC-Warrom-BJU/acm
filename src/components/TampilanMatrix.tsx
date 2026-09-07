@@ -17,10 +17,13 @@ export function TampilanMatrix({
   cabangList,
   jenisList,
   konfigAwal,
+  kejadian,
 }: {
   cabangList: string[];
   jenisList: string[];
   konfigAwal: KonfigCabang[];
+  /** Kejadian 30 hari terakhir, kunci "cabang|jenis". */
+  kejadian: Record<string, number>;
 }) {
   const router = useRouter();
 
@@ -92,6 +95,15 @@ export function TampilanMatrix({
 
   const dibisukan = cabangList.filter((c) => konfig[c]?.length === 0);
 
+  // Peringatan paling berguna di layar ini: jenis yang dimatikan padahal
+  // justru punya kejadian. Itu tanda seseorang menyembunyikan sesuatu yang
+  // benar-benar terjadi, bukan sekadar merapikan jenis yang tidak relevan.
+  const dimatikanPadahalAda = cabangList.flatMap((c) =>
+    jenisList
+      .filter((j) => !tampil(c, j) && (kejadian[`${c}|${j}`] ?? 0) > 0)
+      .map((j) => `${c} / ${labelJenis(j)} (${kejadian[`${c}|${j}`]}×)`),
+  );
+
   return (
     <div>
       {error && (
@@ -107,6 +119,14 @@ export function TampilanMatrix({
         <p className="mb-4 rounded-input border-l-4 border-l-severity-warning bg-surface-elevated px-4 py-3 text-sm">
           <strong>{dibisukan.join(', ')}</strong> tidak akan menampilkan alert apa pun di
           dashboard. Datanya tetap tersimpan dan tetap masuk laporan.
+        </p>
+      )}
+
+      {dimatikanPadahalAda.length > 0 && (
+        <p className="mb-4 rounded-input border-l-4 border-l-severity-warning bg-surface-elevated px-4 py-3 text-sm">
+          <strong>Jenis berikut dimatikan padahal punya kejadian 30 hari terakhir:</strong>{' '}
+          {dimatikanPadahalAda.slice(0, 8).join(', ')}
+          {dimatikanPadahalAda.length > 8 && `, dan ${dimatikanPadahalAda.length - 8} lainnya`}.
         </p>
       )}
 
@@ -147,17 +167,36 @@ export function TampilanMatrix({
                   </span>
                 </td>
 
-                {jenisList.map((j) => (
-                  <td key={j} className="px-3 py-2.5 text-center">
-                    <input
-                      type="checkbox"
-                      checked={tampil(c, j)}
-                      onChange={() => toggle(c, j)}
-                      aria-label={`${labelJenis(j)} di cabang ${c}`}
-                      className="h-4 w-4 cursor-pointer accent-[var(--brand-primary)]"
-                    />
-                  </td>
-                ))}
+                {jenisList.map((j) => {
+                  const n = kejadian[`${c}|${j}`] ?? 0;
+                  return (
+                    <td key={j} className="px-3 py-2.5 text-center">
+                      <label className="inline-flex cursor-pointer flex-col items-center gap-0.5">
+                        <input
+                          type="checkbox"
+                          checked={tampil(c, j)}
+                          onChange={() => toggle(c, j)}
+                          aria-label={
+                            n > 0
+                              ? `${labelJenis(j)} di cabang ${c}, ${n} kejadian dalam 30 hari`
+                              : `${labelJenis(j)} di cabang ${c}, belum pernah terjadi`
+                          }
+                          className="h-4 w-4 cursor-pointer accent-[var(--brand-primary)]"
+                        />
+                        {/* Angka kejadian nyata, bukan sekadar kotak kosong.
+                            Yang nol diredupkan supaya jelas mencentangnya tidak
+                            mengubah apa pun hari ini. */}
+                        <span
+                          className={`font-mono text-[10px] ${
+                            n > 0 ? 'text-content-secondary' : 'text-content-secondary/40'
+                          }`}
+                        >
+                          {n > 0 ? n.toLocaleString('id-ID') : '—'}
+                        </span>
+                      </label>
+                    </td>
+                  );
+                })}
 
                 <td className="px-4 py-2.5 text-content-secondary">
                   {ringkasKonfig({ cabang: c, alert_types: konfig[c] }, jenisList.length)}
