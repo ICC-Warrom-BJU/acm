@@ -19,11 +19,14 @@ interface Item {
   label: string;
   ikon: React.ReactNode;
   staffOnly?: boolean;
+  /** Manajemen pengguna & role adalah wewenang Super Admin saja (PRD §4). */
+  adminOnly?: boolean;
 }
 
 export function Sidebar({ role, ciut = false }: { role: string; ciut?: boolean }) {
   const path = usePathname();
   const staff = role === 'super_admin' || role === 'staff_it';
+  const admin = role === 'super_admin';
 
   const items: Item[] = [
     { href: '/', label: 'Dashboard', ikon: <IkonGrid /> },
@@ -35,7 +38,8 @@ export function Sidebar({ role, ciut = false }: { role: string; ciut?: boolean }
     { href: '/sumber', label: 'Sumber API', ikon: <IkonPlug />, staffOnly: true },
     { href: '/jenis-alert', label: 'Jenis Alert', ikon: <IkonTag />, staffOnly: true },
     { href: '/tampilan', label: 'Konfig Tampilan', ikon: <IkonMata />, staffOnly: true },
-  ].filter((i) => staff || !i.staffOnly);
+    { href: '/pengguna', label: 'Pengguna', ikon: <IkonOrang />, adminOnly: true },
+  ].filter((i) => (staff || !i.staffOnly) && (admin || !i.adminOnly));
 
   return (
     <aside
@@ -116,6 +120,9 @@ const IkonPlug = () => (
 );
 const IkonMata = () => (
   <svg {...svg}><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z" /><circle cx="12" cy="12" r="2.5" /></svg>
+);
+const IkonOrang = () => (
+  <svg {...svg}><circle cx="9" cy="8" r="3.2" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" /><path d="M16 6.5a3 3 0 0 1 0 6M18 20a6 6 0 0 0-2-4.5" /></svg>
 );
 const IkonTag = () => (
   <svg {...svg}><path d="M3 12V5a2 2 0 0 1 2-2h7l9 9-9 9z" /><circle cx="7.5" cy="7.5" r="1.5" /></svg>
