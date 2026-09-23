@@ -8,6 +8,7 @@ import {
   formatEasygoTime,
   deriveSeverity,
 } from './normalize';
+import { createHash } from 'node:crypto';
 import { businessDate } from './time';
 
 /**
@@ -46,7 +47,24 @@ interface AlertRow {
   last_seen_at: string;
 }
 
-export async function pollSource(sourceId: string): Promise<PollResult> {
+/**
+ * Penyetelan window untuk satu panggilan, di luar konfigurasi sumber.
+ *
+ * Dipakai sapuan rekonsiliasi harian: data EASYGO terbit terlambat dan baru
+ * lengkap pada umur sekitar satu jam (FINDINGS 6.5), jadi polling biasa selalu
+ * meninggalkan ekor. Sapuan menariknya ulang saat datanya sudah pasti lengkap.
+ */
+export interface OpsiWindow {
+  /** Panjang window, menggantikan `time_window_lookback_seconds`. */
+  lookbackSeconds?: number;
+  /** Geser ujung window ke belakang sekian detik dari sekarang. */
+  offsetSeconds?: number;
+}
+
+export async function pollSource(
+  sourceId: string,
+  opsi: OpsiWindow = {},
+): Promise<PollResult> {
   const db = createAdminClient();
   const startedAt = Date.now();
 
@@ -75,7 +93,7 @@ export async function pollSource(sourceId: string): Promise<PollResult> {
   };
 
   try {
-    const { body, headers } = buildRequest(src);
+    const { body, headers } = buildRequest(src, opsi);
     const { httpStatus, payload } = await callSource(src, body, headers);
     result.httpStatus = httpStatus;
 
@@ -150,12 +168,13 @@ function numberOrNull(v: unknown): number | null {
  * Duplikat yang timbul dari tumpang tindih tidak jadi masalah — dedup harian
  * di database yang menyerapnya.
  */
-function buildRequest(src: any) {
+function buildRequest(src: any, opsi: OpsiWindow = {}) {
   const body: Record<string, any> = { ...(src.body_template ?? {}) };
 
   if (src.time_window_enabled) {
-    const now = new Date();
-    const from = new Date(now.getTime() - src.time_window_lookback_seconds * 1000);
+    const now = new Date(Date.now() - (opsi.offsetSeconds ?? 0) * 1000);
+    const panjang = opsi.lookbackSeconds ?? src.time_window_lookback_seconds;
+    const from = new Date(now.getTime() - panjang * 1000);
     // Offset diambil per sumber: dua endpoint EASYGO membaca window dalam zona
     // waktu yang berbeda (speed_flag UTC, Notifikasi WIB). Menyamakan keduanya
     // akan membuat salah satu selalu mengembalikan window yang keliru — dan
@@ -362,90 +381,39 @@ async function recordDiscoveries(
 }
 
 /**
- * Kunci dedup harian, sama persis dengan `uq_alerts_dedup` di database.
+ * Sidik jari satu record API.
  *
- * `hari` harus berupa tanggal bisnis (WITA) yang sudah jadi — untuk baris
- * tersimpan itu kolom `occurrence_date`, untuk record masuk hasil
- * `businessDate(first_seen_at)`.
+ * Menggantikan penyaring berbasis jam yang dipakai sebelumnya. Alasannya, dari
+ * pengukuran 2026-09-23 (FINDINGS 6.5):
  *
- * Penting: `occurrence_date` di database diturunkan dari `first_seen_at`, bukan
- * `last_seen_at`. Menurunkannya dari `last_seen_at` akan meleset pada alert yang
- * kejadian pertamanya menjelang tengah malam dan kejadian terakhirnya sudah
- * lewat — persis kasus yang paling mungkin salah hitung.
+ *   EASYGO menerbitkan record terlambat — window 15 menit baru lengkap pada
+ *   umur sekitar 63 menit — sehingga lookback harus jauh lebih panjang. Dengan
+ *   lookback panjang, satu record dikirim ulang puluhan kali.
+ *
+ *   Menyaringnya berdasarkan jam tidak cukup: satu unit bisa punya beberapa
+ *   record dengan `gps_time` yang sama persis, yaitu segmen berkendara berbeda
+ *   yang dipancarkan dalam satu batch. Kalau segmen kedua terbit belakangan,
+ *   penyaring jam akan membuangnya sebagai "tidak lebih baru" — kejadian nyata
+ *   hilang.
+ *
+ * Yang ikut dihitung karena itu bukan jamnya, tapi isi record yang membedakan
+ * satu kejadian dari kejadian lain: unit, jenis, jam, posisi, dan keterangan.
+ * Posisi disertakan justru karena itu yang membedakan segmen-segmen tadi.
+ *
+ * Dipangkas ke 16 karakter heksadesimal. Bukan untuk keamanan — ini bukan nilai
+ * rahasia — melainkan untuk menahan ukuran array pada baris yang menampung
+ * ratusan kejadian per hari.
  */
-function kunciDedup(vhcid: string | null, alertType: string, hari: string) {
-  return `${vhcid ?? ''}|${alertType}|${hari}`;
-}
-
-/**
- * Buang kejadian yang sudah pernah tersimpan, sebelum apa pun dihitung.
- *
- * Window polling sengaja tumpang tindih (lookback 900 detik, interval 300
- * detik) supaya tidak ada kejadian yang lolos di sela dua siklus. Akibat
- * sampingannya: satu kejadian nyata dikirim API sampai tiga kali, dan
- * `occurrence_count` di ON CONFLICT menambah setiap kali — sehingga yang
- * terhitung adalah berapa kali kejadian DIAMBIL, bukan berapa kali ia terjadi.
- *
- * Gejalanya terlihat jelas pada Forbidden Driving, yang secara sifatnya hanya
- * satu kejadian per unit per hari: 49 baris tercatat 2–3 kali padahal jam
- * pertama dan terakhirnya identik.
- *
- * Penyaringnya memakai jam kejadian dari GPS, bukan jam polling: kiriman ulang
- * membawa `gps_time` yang sama persis, jadi apa pun yang tidak lebih baru dari
- * yang sudah tersimpan pasti bukan kejadian baru.
- *
- * Baris berstatus `closed` sengaja diabaikan, mengikuti unique index parsial —
- * setelah sebuah alert ditutup, kejadian berikutnya memang harus membuka baris
- * baru, bukan menambah hitungan baris yang sudah selesai ditangani.
- */
-async function buangKirimanUlang(db: any, rows: AlertRow[]): Promise<AlertRow[]> {
-  if (rows.length === 0) return rows;
-
-  const tanggal = Array.from(new Set(rows.map((r) => businessDate(r.first_seen_at))));
-  const jenis = Array.from(new Set(rows.map((r) => r.alert_type)));
-
-  /*
-    Dibaca berhalaman, bukan sekali ambil.
-
-    PostgREST memotong hasil di 1.000 baris secara diam-diam — tanpa galat dan
-    tanpa penanda. Pada armada 1000+ unit, jumlah baris hari ini melampaui itu,
-    dan peta "sudah tersimpan" akan bolong tanpa ada yang tahu. Yang bolong
-    justru kembali tergelembungkan hitungannya, yaitu persis cacat yang sedang
-    diperbaiki di sini.
-  */
-  const tersimpanRows: { vhcid: string | null; alert_type: string; occurrence_date: string; last_seen_at: string }[] = [];
-  for (let dari = 0; ; dari += 1000) {
-    const { data, error } = await db
-      .from('alerts')
-      .select('vhcid, alert_type, occurrence_date, last_seen_at')
-      .in('occurrence_date', tanggal)
-      .in('alert_type', jenis)
-      .neq('status', 'closed')
-      .range(dari, dari + 999);
-
-    if (error) {
-      // Gagal membaca kondisi sekarang bukan alasan membuang data. Lebih baik
-      // menghitung lebih daripada kehilangan kejadian yang sungguhan.
-      console.warn(`Gagal memeriksa kejadian tersimpan: ${error.message}`);
-      return rows;
-    }
-    tersimpanRows.push(...(data ?? []));
-    if ((data?.length ?? 0) < 1000) break;
-  }
-
-  const tersimpan = new Map<string, number>();
-  for (const a of tersimpanRows) {
-    tersimpan.set(
-      kunciDedup(a.vhcid, a.alert_type, String(a.occurrence_date)),
-      new Date(a.last_seen_at).getTime(),
-    );
-  }
-
-  return rows.filter((r) => {
-    const hari = businessDate(r.first_seen_at);
-    const ada = tersimpan.get(kunciDedup(r.vhcid, r.alert_type, hari));
-    return ada === undefined || new Date(r.last_seen_at).getTime() > ada;
-  });
+function sidikJari(row: AlertRow, rec: Record<string, any>): string {
+  const bahan = [
+    row.vhcid ?? '',
+    row.alert_type,
+    row.first_seen_at,
+    row.lat ?? '',
+    row.long ?? '',
+    String(rec?.ket_notif ?? ''),
+  ].join('|');
+  return createHash('sha1').update(bahan).digest('hex').slice(0, 16);
 }
 
 /**
@@ -457,8 +425,7 @@ async function buangKirimanUlang(db: any, rows: AlertRow[]): Promise<AlertRow[]>
  * kejadian yang sama nyaris bersamaan. Dengan pengecekan di aplikasi, keduanya
  * bisa sama-sama menyimpulkan "belum ada" lalu sama-sama menyisipkan.
  */
-async function upsertAlerts(db: any, rowsMasuk: AlertRow[]) {
-  const rows = await buangKirimanUlang(db, rowsMasuk);
+async function upsertAlerts(db: any, rows: AlertRow[]) {
   if (rows.length === 0) return { newCount: 0, dedupCount: 0 };
 
   // Enrich dari master data (PRD §2.3). Satu query untuk seluruh batch,
@@ -479,16 +446,19 @@ async function upsertAlerts(db: any, rowsMasuk: AlertRow[]) {
   // Gabungkan duplikat di dalam satu batch lebih dulu. ON CONFLICT tidak bisa
   // menyentuh baris yang sama dua kali dalam satu perintah, dan satu window
   // polling memang sering memuat beberapa kejadian untuk unit yang sama.
-  const merged = new Map<string, AlertRow & { occurrence_count: number }>();
+  type Gabung = AlertRow & { occurrence_count: number; fingerprints: string[] };
+  const merged = new Map<string, Gabung>();
+
   for (const row of rows) {
     const m = row.vhcid ? master.get(row.vhcid) : null;
-    const enriched = {
+    const enriched: Gabung = {
       ...row,
       cabang: m?.cabang ?? null,
       group_project: m?.group_project ?? null,
       no_plat: row.no_plat ?? m?.no_plat ?? null,
       occurrence_count: 1,
-    };
+      fingerprints: [sidikJari(row, row.raw_payload)],
+    } as Gabung;
 
     // Kunci penggabungan HARUS memakai tanggal bisnis (WITA), sama persis
     // dengan kolom generated occurrence_date di database. Memakai tanggal UTC
@@ -499,9 +469,15 @@ async function upsertAlerts(db: any, rowsMasuk: AlertRow[]) {
     const prev = merged.get(key);
 
     if (!prev) {
-      merged.set(key, enriched as any);
+      merged.set(key, enriched);
     } else {
-      prev.occurrence_count += 1;
+      // Sidik jari dikumpulkan, bukan dihitung. Database yang memutuskan mana
+      // yang benar-benar baru — di sini kita belum tahu apa yang sudah pernah
+      // tercatat dari polling sebelumnya.
+      if (!prev.fingerprints.includes(enriched.fingerprints[0])) {
+        prev.fingerprints.push(enriched.fingerprints[0]);
+        prev.occurrence_count += 1;
+      }
       if (enriched.first_seen_at < prev.first_seen_at) prev.first_seen_at = enriched.first_seen_at;
       if (enriched.last_seen_at > prev.last_seen_at) {
         prev.last_seen_at = enriched.last_seen_at;

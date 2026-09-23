@@ -262,6 +262,66 @@ pertama tetap menyerap kejadian baru secara normal.
 > punya kecenderungan melebih pada `occurrence_count`, dan ikut terbawa ke
 > `alert_daily_summary` serta hasil ekspor untuk periode itu.
 
+### 6.5 EASYGO Menerbitkan Record Terlambat — DIUKUR 2026-09-23
+
+Ditemukan saat menelusuri kenapa `Forbidden Driving` bisa tercatat 2–3 kali.
+Perbandingan dengan API justru menunjukkan kebalikannya: kita kehilangan hampir
+semuanya.
+
+| Tanggal | Kata API | Tersimpan di ACM |
+|---|---|---|
+| 15 Sep | 207 record / 120 unit | 6 baris |
+| 17 Sep | 190 record / 108 unit | 5 baris |
+| 23 Sep | 162 record / 117 unit | 6 baris |
+
+**Sebabnya bukan API dan bukan window.** Window 15 menit yang sama, ditanyakan
+ulang beberapa jam kemudian, mengembalikan 37 record — padahal poller hanya
+mendapat 5 saat itu. Datanya belum ada ketika poller bertanya.
+
+**Pengukuran keterlambatan.** Tiga window 15 menit dipatok lalu ditanyakan ulang
+tiap 4 menit selama ~94 menit:
+
+| Window | Saat dipatok | Lengkap pada umur |
+|---|---|---|
+| W-30m | 81% | **62 menit** |
+| W-15m | 79% | **63 menit** |
+| W-0m | 92% | 4 menit |
+
+Keduanya berhenti tumbuh pada umur 62–63 menit lalu datar sampai sampel
+terakhir. Pertumbuhannya melompat, bukan mengalir — ciri data yang diterbitkan
+berkelompok, konsisten dengan burst 07:00 pada Forbidden Driving.
+
+**Dampak menyeluruh.** Rekonstruksi 27 polling dalam satu hari: 251 record
+didapat, 427 sebenarnya ada, **176 terlewat (41,2%)**, dan 26 dari 27 window
+kehilangan data. Jadi ini bukan masalah satu jenis alert — seluruh endpoint
+Notifikasi terpengaruh. Forbidden Driving paling parah hanya karena kejadiannya
+menumpuk di satu burst.
+
+Tidak pernah ada galat. Polling sukses, HTTP 200, `records_fetched: 5`.
+
+**Perbaikannya tiga lapis:**
+
+1. `occurrence_count` berbasis sidik jari record (migrasi 0012), sehingga
+   lookback panjang tidak lagi menggelembungkan hitungan
+2. Lookback diperpanjang dari 900 detik ke 5400 detik — 90 menit, dengan margin
+   di atas 63 menit yang terukur
+3. Sapuan rekonsiliasi harian (migrasi 0013) menarik ulang 24 jam terakhir dalam
+   4 potongan 6 jam, menambal ekor yang tetap lolos
+
+Lapis ketiga diperlukan karena keterlambatannya menetes dan tidak berbatas
+pasti; lookback berapa pun akan menyisakan ekor.
+
+**Ukuran durasi panggilan**, untuk menentukan besar potongan sapuan (batas
+fungsi serverless 60 detik):
+
+| Window | Notifikasi | Speed Flag |
+|---|---|---|
+| 6 jam | 0,3 s / 599 record | 4,4 s / 2.510 record |
+| 24 jam | 1,7 s / 1.470 record | 20,9 s / 6.596 record |
+
+Potongan 6 jam dipilih supaya setiap panggilan pasti selesai, termasuk waktu
+penulisannya.
+
 ## 7. Temuan Normalisasi yang Wajib Ditangani
 
 1. **Zona waktu tidak konsisten antar endpoint.** `speed_flag.gps_time` memakai UTC (`"2026-09-07T02:31:49Z"`), sedangkan `Notifikasi.gps_time` memakai offset lokal (`"2026-09-07T00:00:10+07:00"`). Keduanya harus dinormalisasi ke `timestamptz` UTC saat disimpan. Kalau diabaikan, alert speed_flag akan tampak bergeser 7 jam dan **dedup harian akan salah menentukan "hari yang sama"**.

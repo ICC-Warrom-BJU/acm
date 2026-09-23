@@ -30,8 +30,26 @@ export async function POST(
     return NextResponse.json({ error: 'Tidak diizinkan' }, { status: 401 });
   }
 
+  /*
+    Sapuan rekonsiliasi memakai endpoint yang sama dengan window yang berbeda.
+    Nilainya dibatasi di sini, bukan dipercaya apa adanya: window yang terlalu
+    panjang akan melewati batas 60 detik fungsi serverless dan gagal di tengah
+    penulisan — yang jauh lebih buruk daripada ditolak sejak awal.
+  */
+  const p = req.nextUrl.searchParams;
+  const angka = (nama: string, maks: number) => {
+    const v = Number(p.get(nama));
+    if (!Number.isFinite(v) || v <= 0) return undefined;
+    return Math.min(Math.floor(v), maks);
+  };
+
+  const opsi = {
+    lookbackSeconds: angka('lookback', 6 * 3600),
+    offsetSeconds: angka('offset', 7 * 24 * 3600),
+  };
+
   try {
-    const result = await pollSource(params.sourceId);
+    const result = await pollSource(params.sourceId, opsi);
 
     // Selalu balas 200 selama siklusnya sendiri berjalan. Kegagalan memanggil
     // API eksternal adalah kondisi yang sudah tercatat di polling_logs dan
