@@ -362,6 +362,93 @@ async function recordDiscoveries(
 }
 
 /**
+ * Kunci dedup harian, sama persis dengan `uq_alerts_dedup` di database.
+ *
+ * `hari` harus berupa tanggal bisnis (WITA) yang sudah jadi — untuk baris
+ * tersimpan itu kolom `occurrence_date`, untuk record masuk hasil
+ * `businessDate(first_seen_at)`.
+ *
+ * Penting: `occurrence_date` di database diturunkan dari `first_seen_at`, bukan
+ * `last_seen_at`. Menurunkannya dari `last_seen_at` akan meleset pada alert yang
+ * kejadian pertamanya menjelang tengah malam dan kejadian terakhirnya sudah
+ * lewat — persis kasus yang paling mungkin salah hitung.
+ */
+function kunciDedup(vhcid: string | null, alertType: string, hari: string) {
+  return `${vhcid ?? ''}|${alertType}|${hari}`;
+}
+
+/**
+ * Buang kejadian yang sudah pernah tersimpan, sebelum apa pun dihitung.
+ *
+ * Window polling sengaja tumpang tindih (lookback 900 detik, interval 300
+ * detik) supaya tidak ada kejadian yang lolos di sela dua siklus. Akibat
+ * sampingannya: satu kejadian nyata dikirim API sampai tiga kali, dan
+ * `occurrence_count` di ON CONFLICT menambah setiap kali — sehingga yang
+ * terhitung adalah berapa kali kejadian DIAMBIL, bukan berapa kali ia terjadi.
+ *
+ * Gejalanya terlihat jelas pada Forbidden Driving, yang secara sifatnya hanya
+ * satu kejadian per unit per hari: 49 baris tercatat 2–3 kali padahal jam
+ * pertama dan terakhirnya identik.
+ *
+ * Penyaringnya memakai jam kejadian dari GPS, bukan jam polling: kiriman ulang
+ * membawa `gps_time` yang sama persis, jadi apa pun yang tidak lebih baru dari
+ * yang sudah tersimpan pasti bukan kejadian baru.
+ *
+ * Baris berstatus `closed` sengaja diabaikan, mengikuti unique index parsial —
+ * setelah sebuah alert ditutup, kejadian berikutnya memang harus membuka baris
+ * baru, bukan menambah hitungan baris yang sudah selesai ditangani.
+ */
+async function buangKirimanUlang(db: any, rows: AlertRow[]): Promise<AlertRow[]> {
+  if (rows.length === 0) return rows;
+
+  const tanggal = Array.from(new Set(rows.map((r) => businessDate(r.first_seen_at))));
+  const jenis = Array.from(new Set(rows.map((r) => r.alert_type)));
+
+  /*
+    Dibaca berhalaman, bukan sekali ambil.
+
+    PostgREST memotong hasil di 1.000 baris secara diam-diam — tanpa galat dan
+    tanpa penanda. Pada armada 1000+ unit, jumlah baris hari ini melampaui itu,
+    dan peta "sudah tersimpan" akan bolong tanpa ada yang tahu. Yang bolong
+    justru kembali tergelembungkan hitungannya, yaitu persis cacat yang sedang
+    diperbaiki di sini.
+  */
+  const tersimpanRows: { vhcid: string | null; alert_type: string; occurrence_date: string; last_seen_at: string }[] = [];
+  for (let dari = 0; ; dari += 1000) {
+    const { data, error } = await db
+      .from('alerts')
+      .select('vhcid, alert_type, occurrence_date, last_seen_at')
+      .in('occurrence_date', tanggal)
+      .in('alert_type', jenis)
+      .neq('status', 'closed')
+      .range(dari, dari + 999);
+
+    if (error) {
+      // Gagal membaca kondisi sekarang bukan alasan membuang data. Lebih baik
+      // menghitung lebih daripada kehilangan kejadian yang sungguhan.
+      console.warn(`Gagal memeriksa kejadian tersimpan: ${error.message}`);
+      return rows;
+    }
+    tersimpanRows.push(...(data ?? []));
+    if ((data?.length ?? 0) < 1000) break;
+  }
+
+  const tersimpan = new Map<string, number>();
+  for (const a of tersimpanRows) {
+    tersimpan.set(
+      kunciDedup(a.vhcid, a.alert_type, String(a.occurrence_date)),
+      new Date(a.last_seen_at).getTime(),
+    );
+  }
+
+  return rows.filter((r) => {
+    const hari = businessDate(r.first_seen_at);
+    const ada = tersimpan.get(kunciDedup(r.vhcid, r.alert_type, hari));
+    return ada === undefined || new Date(r.last_seen_at).getTime() > ada;
+  });
+}
+
+/**
  * Simpan alert dengan dedup harian (PRD §7.1).
  *
  * Dedup dilakukan oleh unique index parsial `uq_alerts_dedup` lewat
@@ -370,7 +457,10 @@ async function recordDiscoveries(
  * kejadian yang sama nyaris bersamaan. Dengan pengecekan di aplikasi, keduanya
  * bisa sama-sama menyimpulkan "belum ada" lalu sama-sama menyisipkan.
  */
-async function upsertAlerts(db: any, rows: AlertRow[]) {
+async function upsertAlerts(db: any, rowsMasuk: AlertRow[]) {
+  const rows = await buangKirimanUlang(db, rowsMasuk);
+  if (rows.length === 0) return { newCount: 0, dedupCount: 0 };
+
   // Enrich dari master data (PRD §2.3). Satu query untuk seluruh batch,
   // bukan satu per baris — pada 1000+ unit, per-baris akan jadi beban nyata.
   const vhcids = Array.from(

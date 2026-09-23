@@ -215,6 +215,53 @@ Catatan yang masih terbuka: severity-nya kini `warning`. Bergerak sampai hampir
 empat jam di tengah malam bisa jadi layak `critical` — keputusan BJU, satu baris
 di master jenis.
 
+### 6.4 `occurrence_count` Menghitung Pengambilan, Bukan Kejadian — DIPERBAIKI 2026-09-23
+
+Ditemukan dari pertanyaan sederhana: kenapa sebuah alert menunjukkan "pertama
+terlihat" dan "terakhir terlihat" pada jam yang sama persis padahal hitungannya
+lebih dari satu?
+
+**Sebabnya.** Window polling sengaja tumpang tindih — lookback 900 detik dengan
+interval 300 detik — supaya tidak ada kejadian yang lolos di sela dua siklus.
+Tumpang tindih itu benar dan tetap dipertahankan. Yang salah adalah
+`occurrence_count` di klausa ON CONFLICT: ia menambah **setiap kali** kejadian
+dikirim ulang, sehingga yang terhitung adalah berapa kali kejadian DIAMBIL, bukan
+berapa kali ia terjadi. Faktor tumpang tindihnya 900/300 = 3.
+
+**Buktinya** paling jelas pada `forbidden_driving`, yang secara sifatnya hanya
+satu kejadian per unit per hari (rekap jendela 00:00–05:00, lihat §6.3):
+
+| `occurrence_count` dengan jam pertama = jam terakhir | Baris |
+|---|---|
+| 2 | 24 |
+| 3 | 25 |
+| 4 | 1 |
+| 5 | 1 |
+
+Mengumpul tepat di 2 dan 3, sesuai faktor tumpang tindihnya. Secara keseluruhan
+336 dari 2.280 alert berulang punya jam pertama dan terakhir yang identik.
+
+**Perbaikannya** ada di `buangKirimanUlang()` pada `src/lib/poller.ts`: sebelum
+apa pun dihitung, poller membaca `last_seen_at` yang sudah tersimpan untuk
+kunci-kunci di batch, lalu membuang record yang jam kejadiannya tidak lebih baru.
+Penyaringnya memakai `gps_time`, bukan jam polling — kiriman ulang membawa
+`gps_time` yang sama persis.
+
+Pembacaan itu **berhalaman**. PostgREST memotong hasil di 1.000 baris tanpa galat
+dan tanpa penanda; pada armada 1000+ unit, peta pembanding akan bolong diam-diam
+dan barisnya kembali tergelembung — cacat yang sama persis, hanya lebih sulit
+terlihat.
+
+**Terverifikasi** dengan menjalankan dua siklus polling berturut-turut pada
+window yang sama: siklus kedua menambah 0 kejadian dan 0 baris, sementara siklus
+pertama tetap menyerap kejadian baru secara normal.
+
+> **Angka historis tidak bisa dipulihkan.** ACM hanya menyimpan payload kejadian
+> terakhir per baris, bukan setiap kejadiannya, jadi tidak ada cara mengetahui
+> hitungan sebenarnya untuk alert yang sudah tersimpan. Data sebelum 2026-09-23
+> punya kecenderungan melebih pada `occurrence_count`, dan ikut terbawa ke
+> `alert_daily_summary` serta hasil ekspor untuk periode itu.
+
 ## 7. Temuan Normalisasi yang Wajib Ditangani
 
 1. **Zona waktu tidak konsisten antar endpoint.** `speed_flag.gps_time` memakai UTC (`"2026-09-07T02:31:49Z"`), sedangkan `Notifikasi.gps_time` memakai offset lokal (`"2026-09-07T00:00:10+07:00"`). Keduanya harus dinormalisasi ke `timestamptz` UTC saat disimpan. Kalau diabaikan, alert speed_flag akan tampak bergeser 7 jam dan **dedup harian akan salah menentukan "hari yang sama"**.
