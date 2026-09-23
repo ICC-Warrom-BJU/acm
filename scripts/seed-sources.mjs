@@ -136,12 +136,11 @@ if (notifSourceId) {
     { notif_value: 'Forbidden Parking', alert_type: 'parking_overtime', label: 'Parking Overtime',
       severity: 'warning', is_active: true },
 
-    // Kandidat untuk Fatigue Driving. Diaktifkan dengan alert_type-nya sendiri
-    // dulu — begitu EASYGO memastikan jenis mana yang benar-benar mewakili
-    // fatigue, cukup ubah alert_type baris ini lewat UI.
+    // Jendela jam larangan berkendara, BUKAN padanan fatigue driving — dugaan
+    // itu terbantah setelah jenis FATIQUE ditemukan (FINDINGS 6.1).
     { notif_value: 'Forbidden Driving', alert_type: 'forbidden_driving', label: 'Forbidden Driving',
       severity: 'critical', is_active: true,
-      notes: 'Kandidat terdekat untuk fatigue_driving. API tidak punya jenis fatigue eksplisit — perlu konfirmasi EASYGO (FINDINGS 6.1).' },
+      notes: 'Jam larangan berkendara, disetel di EASYGO: 00:00:00-05:00:00. Durasi pada ket_notif = lama unit BERGERAK di dalam jendela itu, bukan lama berkendara menerus. Kejadian dilaporkan API setelah jendela tutup (pengamatan: 07:00-11:00 WIB), jadi jam laporan bukan jam pelanggaran. Ambang terpantau 30 menit: 0 dari 165 kejadian di bawah itu. Dikonfirmasi BJU 2026-09-23 (FINDINGS 6.3).' },
 
     // --- Nonaktif: terdaftar tapi sengaja tidak diproses ---
 
