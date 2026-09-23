@@ -322,6 +322,47 @@ fungsi serverless 60 detik):
 Potongan 6 jam dipilih supaya setiap panggilan pasti selesai, termasuk waktu
 penulisannya.
 
+### 6.6 Keputusan Retensi & Backfill — DISEPAKATI 2026-09-23
+
+Setelah perbaikan 6.5, muncul dua pertanyaan turunan: apakah data lama perlu
+ditarik ulang, dan berapa lama data disimpan.
+
+**Backfill: TIDAK dikerjakan.** Sapuan rekonsiliasi hanya menjangkau 24 jam
+terakhir, jadi periode 7–22 September tetap kekurangan data. API menyimpan
+riwayatnya dan dedup sidik jari membuat penarikan ulang aman, tapi kejadian
+bulan lalu sudah lewat masa tindak lanjutnya — nilainya tidak sepadan dengan
+menulis data historis dalam jumlah besar.
+
+**Retensi: TETAP 92 hari.** Sempat dipertimbangkan memangkasnya ke 24 jam.
+Pengukuran biaya nyata (rata-rata baris 1.474 byte, 323 baris/hari pada armada
+517 unit):
+
+| Retensi | 517 unit | 1000 unit |
+|---|---|---|
+| 1 hari | 0,5 MB | 0,9 MB |
+| 7 hari | 3,2 MB | 6,1 MB |
+| 30 hari | 13,6 MB | 26,3 MB |
+| **92 hari** | **41,8 MB** | **80,6 MB** |
+
+Batas Supabase gratis 500 MB, jadi retensi penuh memakai 16% kuota bahkan pada
+armada dua kali lipat. Memangkasnya menghemat sesuatu yang tidak langka, dengan
+menukar sesuatu yang dibutuhkan.
+
+Alasan penentunya datang dari temuan 6.5 sendiri: cacat kehilangan 95% data
+Forbidden Driving **hanya ketahuan karena ada 17 hari data untuk dibandingkan** —
+103 baris di 7 September lalu anjlok ke 2–6 baris per hari. Dengan retensi 24
+jam yang terlihat hanya "hari ini ada 6 baris", angka yang tampak wajar, dan
+cacatnya akan terus berjalan tanpa terdeteksi.
+
+Retensi hanya berguna kalau jobnya benar-benar berjalan. `purge_old_data()`
+diverifikasi langsung di produksi pada 2026-09-23: selesai 0,3 detik tanpa galat,
+tidak ada baris terhapus karena data tertua baru berumur 16 hari. Pemeriksaan ini
+bukan formalitas — fungsi yang sama pernah gagal total karena salah cast tipe,
+tanpa satu pun pesan galat (lihat §8).
+
+> **KEPUTUSAN (BJU):** tidak ada backfill; retensi alert mentah tetap 92 hari,
+> rekap harian `alert_daily_summary` tetap tanpa batas.
+
 ## 7. Temuan Normalisasi yang Wajib Ditangani
 
 1. **Zona waktu tidak konsisten antar endpoint.** `speed_flag.gps_time` memakai UTC (`"2026-09-07T02:31:49Z"`), sedangkan `Notifikasi.gps_time` memakai offset lokal (`"2026-09-07T00:00:10+07:00"`). Keduanya harus dinormalisasi ke `timestamptz` UTC saat disimpan. Kalau diabaikan, alert speed_flag akan tampak bergeser 7 jam dan **dedup harian akan salah menentukan "hari yang sama"**.
