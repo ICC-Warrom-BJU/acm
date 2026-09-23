@@ -27,22 +27,41 @@ const SEVERITY_COLOR = {
   info: '#1D9E75',
 } as const;
 
-export function EventChart({ alerts, wall = false }: { alerts: Alert[]; wall?: boolean }) {
-  const buckets = new Map<string, { hour: string; critical: number; warning: number; info: number }>();
+/** Berapa jam ke belakang yang ditampilkan grafik. */
+const JAM_TAMPIL = 24;
 
-  // 12 jam terakhir, selalu ditampilkan penuh — termasuk jam yang nol kejadian.
+export function EventChart({ alerts, wall = false }: { alerts: Alert[]; wall?: boolean }) {
+  const buckets = new Map<number, { hour: string; critical: number; warning: number; info: number }>();
+
+  /*
+    Kunci keranjang adalah JAM ABSOLUT (jam sejak epoch), bukan label "09".
+
+    Dashboard mengambil semua alert yang belum ditutup tanpa batas tanggal, jadi
+    label jam saja akan menyeret alert berumur berhari-hari ke kolom hari ini —
+    dan dengan rentang 24 jam, setiap alert lama pasti cocok dengan salah satu
+    kolom. Grafik akan terlihat wajar padahal angkanya bukan 24 jam terakhir.
+
+    WITA berselisih bulat jam dari UTC, sehingga batas jam absolut tetap jatuh
+    tepat di pergantian jam WITA dan labelnya akurat.
+  */
+  const jamKini = Math.floor(Date.now() / 3600_000);
+
+  // Seluruh rentang selalu ditampilkan penuh — termasuk jam yang nol kejadian.
   // Kalau jam kosong dihilangkan, sumbu waktu jadi tidak rata dan lonjakan
   // terlihat lebih landai dari kenyataannya.
-  const now = new Date();
-  for (let i = 11; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 3600_000);
-    const label = formatHour(d);
-    buckets.set(label, { hour: label, critical: 0, warning: 0, info: 0 });
+  for (let i = JAM_TAMPIL - 1; i >= 0; i--) {
+    const jam = jamKini - i;
+    buckets.set(jam, {
+      hour: formatHour(new Date(jam * 3600_000)),
+      critical: 0,
+      warning: 0,
+      info: 0,
+    });
   }
 
   for (const a of alerts) {
-    const label = formatHour(a.last_seen_at);
-    const b = buckets.get(label);
+    const jam = Math.floor(new Date(a.last_seen_at).getTime() / 3600_000);
+    const b = buckets.get(jam);
     if (b) b[a.severity] = (b[a.severity] ?? 0) + a.occurrence_count;
   }
 
@@ -54,7 +73,7 @@ export function EventChart({ alerts, wall = false }: { alerts: Alert[]; wall?: b
     // terbaca dari jarak jauh (UIUX §4).
     <section className="flex h-full flex-col rounded-card bg-surface-elevated p-5">
       <h2 className={`mb-4 font-medium ${wall ? 'text-3xl' : 'text-xl'}`}>
-        Event per Jam · 12 Jam Terakhir ({BUSINESS_TZ_LABEL})
+        Event per Jam · {JAM_TAMPIL} Jam Terakhir ({BUSINESS_TZ_LABEL})
       </h2>
 
       <div className="min-h-0 flex-1">
