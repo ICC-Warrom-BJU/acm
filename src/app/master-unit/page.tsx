@@ -4,6 +4,7 @@ import { getCurrentUser, isStaff, createServerSupabase } from '@/lib/supabase/se
 import { PageShell } from '@/components/PageShell';
 import { MasterUnitTable, type Unit } from '@/components/MasterUnitTable';
 import { UnitFilter } from '@/components/UnitFilter';
+import { ImportMasterUnit } from '@/components/ImportMasterUnit';
 
 export const dynamic = 'force-dynamic';
 
@@ -81,11 +82,16 @@ export default async function MasterUnitPage({
             Anda masuk sebagai Management — halaman ini hanya bisa dilihat, tidak bisa diubah.
           </p>
         )}
-        <p className="mt-3 text-sm text-content-secondary">
-          Import massal dari Excel dijalankan lewat{' '}
-          <code className="font-mono">npm run import:vehicles</code>, yang
-          menampilkan pratinjau lebih dulu sebelum menulis apa pun.
-        </p>
+        {isStaff(user.role) && (
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <ImportMasterUnit />
+            <p className="text-sm text-content-secondary">
+              Unggah Excel atau CSV berkunci{' '}
+              <span className="font-mono">VHCID</span> — pratinjau ditampilkan
+              lebih dulu sebelum apa pun ditulis.
+            </p>
+          </div>
+        )}
       </div>
 
       <UnitFilter cabangList={cabangList} projectList={projectList} />
