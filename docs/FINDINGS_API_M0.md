@@ -175,6 +175,46 @@ Kalau kedua sumber diaktifkan apa adanya, satu kejadian ngebut yang sama berpote
 
 > **KEPUTUSAN (BJU): overspeed memakai Speed Flag sebagai satu-satunya sumber.** `OVERSPEED` dari `Notifikasi/Operation` tetap didaftarkan di master data tapi dengan `is_active = false`, bukan dihapus — supaya alasannya terbaca di UI dan supaya jenis itu tidak muncul berulang sebagai "jenis baru yang belum ditinjau" tiap kali polling berjalan.
 
+### 6.3 `Forbidden Driving` — TERPECAHKAN 2026-09-23 (dikonfirmasi BJU)
+
+Jenis ini sempat dipahami keliru dua kali. Pertama dikira padanan fatigue driving
+(§6.1), lalu — setelah itu terbantah — dikira "mengemudi di jam yang dilarang"
+dengan jam kejadian sebagai inti pelanggarannya. Yang kedua **juga keliru dalam
+hal yang menentukan cara menampilkannya.**
+
+**Aturan sebenarnya, dari BJU:** `Forbidden Driving` adalah jendela **jam larangan
+berkendara**, disetel di EASYGO pada **00:00:00–05:00:00**. Durasi yang muncul di
+`ket_notif` adalah **lama unit bergerak di dalam jendela itu** — bukan lama
+berkendara menerus, dan bukan pula ambang durasi tersendiri.
+
+Seluruh 165 kejadian pada data produksi konsisten dengan aturan itu:
+
+| Pemeriksaan | Hasil |
+|---|---|
+| Durasi maksimum | 3j 55m — muat dalam jendela 5 jam |
+| Durasi melebihi 5 jam | **0 dari 165** |
+| Durasi minimum | 30m 01s |
+| Di bawah 30 menit | **0 dari 165** — ada ambang 30 menit |
+| `gps_time` jatuh di dalam 00:00–05:00 WIB | **0 dari 165** |
+
+Baris terakhir itu yang paling penting untuk UI: **kejadian baru dilaporkan API
+setelah jendela larangan tutup.** Seluruhnya masuk pukul 07:00–11:00 WIB
+(08:00–12:00 WITA). Jadi jam yang terbaca di alert bukan jam pelanggaran — justru
+jam ketika mengemudi sepenuhnya sah.
+
+Konsekuensinya, kartu dashboard yang menampilkan jam sebagai angka utama
+(`"08:13 · ≥ 1j 6m"`) menyesatkan: pembacanya akan menyimpulkan unit melanggar
+pukul 08:13. Sejak 2026-09-23 yang ditampilkan adalah **durasinya**, dengan
+keterangan `jam larangan` — lihat `metrik()` di `src/lib/alert.ts`.
+
+Jam larangannya sendiri **tidak ditulis di kode**, karena itu konfigurasi EASYGO
+yang bisa berubah kapan saja. Keterangannya disimpan di
+`alert_type_master.notes`, tempat staf bisa memperbaruinya lewat UI.
+
+Catatan yang masih terbuka: severity-nya kini `warning`. Bergerak sampai hampir
+empat jam di tengah malam bisa jadi layak `critical` — keputusan BJU, satu baris
+di master jenis.
+
 ## 7. Temuan Normalisasi yang Wajib Ditangani
 
 1. **Zona waktu tidak konsisten antar endpoint.** `speed_flag.gps_time` memakai UTC (`"2026-09-07T02:31:49Z"`), sedangkan `Notifikasi.gps_time` memakai offset lokal (`"2026-09-07T00:00:10+07:00"`). Keduanya harus dinormalisasi ke `timestamptz` UTC saat disimpan. Kalau diabaikan, alert speed_flag akan tampak bergeser 7 jam dan **dedup harian akan salah menentukan "hari yang sama"**.

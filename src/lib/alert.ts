@@ -1,4 +1,3 @@
-import { formatJam } from './time';
 
 /**
  * Tipe dan helper alert yang dipakai bersama oleh feed, lane, grafik, dan
@@ -174,33 +173,36 @@ export interface Metrik {
  *
  *   speed_flag         kecepatan          "74 km/j"
  *   fatigue_driving    lama mengemudi     "4j"        (regulasi maks 4 jam menerus)
- *   forbidden_driving  JAM kejadian       "08:00 · ≥ 1j 7m"
+ *   forbidden_driving  lama bergerak      "≥ 1j 7m · jam larangan"
  *   idle/parking       durasi             "≥ 1j 2m"
  *
- * forbidden_driving ditangani khusus karena pelanggarannya adalah *kapan*
- * mengemudi, bukan berapa lama — mengemudi di jam yang tidak diperbolehkan.
- * Menampilkan durasinya saja membuatnya mudah tertukar dengan fatigue driving,
- * seolah-olah masalahnya lama mengemudi. Jamnya jadi angka utama, durasinya
- * (lama mengemudi di dalam jam terlarang) mengikut sebagai keterangan.
+ * forbidden_driving sempat menampilkan JAM kejadian sebagai angka utama, dari
+ * dugaan bahwa yang dilanggar adalah kapan unit mengemudi. Dugaan itu keliru
+ * dalam hal yang penting: jendela larangannya disetel di EASYGO (saat ini
+ * 00:00–05:00), tapi kejadiannya baru DILAPORKAN setelah jendela tutup —
+ * seluruh 165 kejadian pada data BJU dilaporkan pukul 07:00–11:00 WIB, tanpa
+ * satu pun di dalam jendelanya sendiri.
  *
- * Jenis disebut eksplisit di sini, satu-satunya tempat di kode yang begitu.
- * Ini keputusan penyajian yang terikat pada makna jenis tersebut, bukan
- * konfigurasi — jenis baru dari master data tetap tampil benar lewat jalur
- * umum di bawah, hanya tanpa perlakuan khusus.
+ * Jadi jam yang tampil di kartu justru jam saat mengemudi sepenuhnya sah, dan
+ * pembacanya akan menyimpulkan hal yang salah. Yang benar-benar diukur adalah
+ * BERAPA LAMA unit bergerak di dalam jendela larangan — itu yang ada di
+ * `ket_notif`, dan itu yang ditampilkan.
+ *
+ * Jam larangannya sendiri tidak ditulis di sini karena itu konfigurasi EASYGO
+ * yang bisa berubah; keterangannya disimpan di `alert_type_master.notes`.
  */
 export function metrik(a: Alert): Metrik | null {
   const kmh = kecepatan(a);
   if (kmh != null) return { utama: String(kmh), satuan: 'km/j' };
 
   const lama = durasiPelanggaran(a);
+  if (!lama) return null;
 
-  if (a.alert_type === 'forbidden_driving' && a.first_seen_at) {
-    // Jam MULAI, bukan jam terakhir terlihat: yang dilanggar adalah saat unit
-    // mulai bergerak di periode terlarang.
-    return { utama: formatJam(a.first_seen_at), sekunder: lama ?? undefined };
+  if (a.alert_type === 'forbidden_driving') {
+    return { utama: lama, sekunder: 'jam larangan' };
   }
 
-  return lama ? { utama: lama } : null;
+  return { utama: lama };
 }
 
 /** Label jenis alert untuk manusia. */
